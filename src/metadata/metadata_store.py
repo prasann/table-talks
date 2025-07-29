@@ -1,16 +1,19 @@
-"""Metadata storage and retrieval using DuckDB."""
+"""Metadata storage using DuckDB for schema information."""
 
+from pathlib import Path
+from typing import List, Dict, Optional, Any
 import duckdb
 import logging
-import os
-import sys
-from pathlib import Path
-from typing import List, Dict, Any, Optional
 from datetime import datetime
 
-# Add src to path for utils import
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from utils.logger import get_logger
+try:
+    from ..utils.logger import get_logger
+except ImportError:
+    # Fallback for direct execution
+    import sys
+    import os
+    sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    from utils.logger import get_logger
 
 
 class MetadataStore:
@@ -32,31 +35,34 @@ class MetadataStore:
     def _init_database(self) -> None:
         """Initialize database and create schema_info table if it doesn't exist."""
         with duckdb.connect(str(self.db_path)) as conn:
-            # Drop existing table if it has the old schema
-            try:
-                conn.execute("DROP TABLE IF EXISTS schema_info")
-            except:
-                pass
+            # Check if table exists
+            table_exists = conn.execute("""
+                SELECT COUNT(*) FROM information_schema.tables 
+                WHERE table_name = 'schema_info'
+            """).fetchone()[0] > 0
+            
+            if not table_exists:
+                conn.execute("""
+                    CREATE TABLE schema_info (
+                        file_name TEXT NOT NULL,
+                        file_path TEXT NOT NULL,
+                        column_name TEXT NOT NULL,
+                        data_type TEXT NOT NULL,
+                        null_count INTEGER,
+                        unique_count INTEGER,
+                        total_rows INTEGER,
+                        file_size_mb REAL,
+                        last_scanned TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    )
+                """)
                 
-            conn.execute("""
-                CREATE TABLE schema_info (
-                    file_name TEXT NOT NULL,
-                    file_path TEXT NOT NULL,
-                    column_name TEXT NOT NULL,
-                    data_type TEXT NOT NULL,
-                    null_count INTEGER,
-                    unique_count INTEGER,
-                    total_rows INTEGER,
-                    file_size_mb REAL,
-                    last_scanned TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                )
-            """)
-            
-            # Create indexes for better query performance
-            conn.execute("CREATE INDEX IF NOT EXISTS idx_file_name ON schema_info(file_name)")
-            conn.execute("CREATE INDEX IF NOT EXISTS idx_column_name ON schema_info(column_name)")
-            
-        self.logger.info(f"Database initialized at {self.db_path}")
+                # Create indexes for better query performance
+                conn.execute("CREATE INDEX IF NOT EXISTS idx_file_name ON schema_info(file_name)")
+                conn.execute("CREATE INDEX IF NOT EXISTS idx_column_name ON schema_info(column_name)")
+                
+                self.logger.info(f"Database initialized at {self.db_path}")
+            else:
+                self.logger.debug(f"Database already exists at {self.db_path}")
     
     def store_schema_info(self, schema_data: List[Dict[str, Any]]) -> None:
         """Store schema information for a file.

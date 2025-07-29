@@ -2,14 +2,17 @@
 
 import pandas as pd
 import logging
-import os
-import sys
 from pathlib import Path
 from typing import List, Dict, Any, Optional
 
-# Add src to path for utils import
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from utils.logger import get_logger
+try:
+    from ..utils.logger import get_logger
+except ImportError:
+    # Fallback for direct execution
+    import sys
+    import os
+    sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    from utils.logger import get_logger
 
 
 class SchemaExtractor:

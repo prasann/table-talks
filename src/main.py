@@ -14,8 +14,14 @@ warnings.filterwarnings("ignore", message=".*deprecated.*", category=Deprecation
 # Add src directory to Python path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from cli.chat_interface import ChatInterface
-from utils.logger import setup_logger
+# Handle both direct execution and module execution
+try:
+    from .cli.chat_interface import ChatInterface
+    from .utils.logger import setup_logger
+except ImportError:
+    # Fallback for direct execution
+    from cli.chat_interface import ChatInterface
+    from utils.logger import setup_logger
 
 
 def load_config() -> dict:
@@ -64,6 +70,57 @@ def check_ollama_connection(base_url: str) -> bool:
         return response.status_code == 200
     except Exception:
         return False
+
+
+def run_tabletalk_commands(commands):
+    """Run TableTalk commands programmatically and return results.
+    
+    Args:
+        commands: List of commands to execute
+        
+    Returns:
+        List of (command, response, success) tuples
+    """
+    try:
+        # Create instance
+        config = load_config()
+        log_level = config.get('logging', {}).get('level', 'INFO')
+        setup_logger(level=getattr(logging, log_level.upper()))
+        
+        chat = ChatInterface(config)
+        results = []
+        
+        # Redirect stdout to capture output
+        import io
+        from contextlib import redirect_stdout
+        
+        for command in commands:
+            try:
+                if command.strip().lower() in ['quit', 'exit']:
+                    break
+                
+                # Capture output
+                output_buffer = io.StringIO()
+                with redirect_stdout(output_buffer):
+                    if command.startswith('/') or command.startswith('scan '):
+                        # Handle as command
+                        if command.startswith('scan '):
+                            command = '/' + command
+                        chat._handle_command(command)
+                    else:
+                        # Handle as query
+                        chat._handle_query(command)
+                
+                response = output_buffer.getvalue().strip()
+                results.append((command, response, True))
+                
+            except Exception as e:
+                results.append((command, str(e), False))
+        
+        return results
+        
+    except Exception as e:
+        return [("initialization", str(e), False)]
 
 
 def main():

@@ -4,10 +4,10 @@ import os
 import sys
 from pathlib import Path
 
-from metadata.metadata_store import MetadataStore
-from metadata.schema_extractor import SchemaExtractor
-from tools.schema_tools import SchemaTools
-from agent.llm_agent import LLMAgent
+from ..metadata.metadata_store import MetadataStore
+from ..metadata.schema_extractor import SchemaExtractor
+from ..tools.schema_tools import SchemaTools
+from ..agent.llm_agent import LLMAgent
 
 
 class ChatInterface:
@@ -28,22 +28,28 @@ class ChatInterface:
         # Initialize LLM agent
         try:
             self.agent = LLMAgent(
+                schema_tools=self.schema_tools,
                 model_name=config['llm']['model'],
-                base_url=config['llm']['base_url'],
-                temperature=config['llm']['temperature'],
-                max_tokens=config['llm']['max_tokens'],
-                schema_tools=self.schema_tools
+                base_url=config['llm']['base_url']
             )
+            if self.agent.check_llm_availability():
+                print("🤖 LLM agent initialized with intelligent query parsing!")
+            else:
+                print("📝 Running in basic mode (LLM not available)")
         except Exception as e:
-            print(f"LLM agent not available: {e}")
+            print(f"⚠️  LLM agent not available: {e}")
             self.agent = None
         
         self.running = False
 
     def start(self):
         """Start the interactive CLI."""
-        print("TableTalk - Chat with your data schemas")
-        print("Commands: /scan <dir>, /help, /exit")
+        print("🗣️  TableTalk - Conversational data exploration")
+        print("📁 Commands: /scan <dir>, /help, /status, /exit")
+        if self.agent and self.agent.check_llm_availability():
+            print("✨ Intelligent mode: Ask complex questions and get smart insights!")
+        else:
+            print("📊 Basic mode: Ask simple questions about your data")
         print()
         
         self.running = True
@@ -75,6 +81,8 @@ class ChatInterface:
             self.running = False
         elif cmd == '/help':
             self._show_help()
+        elif cmd == '/status':
+            self._show_status()
         elif cmd == '/scan':
             if len(parts) < 2:
                 print("Usage: /scan <directory>")
@@ -87,59 +95,14 @@ class ChatInterface:
     def _handle_query(self, query):
         """Handle natural language queries."""
         if not self.agent:
-            print("LLM agent not available. Use /scan commands.")
+            print("Agent not available. Please try /scan to analyze files first.")
             return
         
-        # Try direct pattern matching first
-        direct = self._try_direct(query)
-        if direct:
-            print(direct)
-            return
-            
         try:
             response = self.agent.query(query)
             print(response)
         except Exception as e:
-            print(f"Error: {e}")
-
-    def _try_direct(self, query):
-        """Try direct response for common queries."""
-        q = query.lower()
-        
-        # Schema queries
-        if "schema" in q or "structure" in q:
-            files = self.metadata_store.list_all_files()
-            for file_info in files:
-                filename = file_info['file_name'].lower()
-                # Check for exact filename match
-                if filename in q:
-                    return self.schema_tools.get_file_schema(file_info['file_name'])
-                # Check for base name without extension (e.g., "orders" matches "orders.csv")
-                base_name = filename.split('.')[0]  # "orders.csv" -> "orders"
-                if base_name in q:
-                    return self.schema_tools.get_file_schema(file_info['file_name'])
-        
-        # File listing
-        if "files" in q and ("what" in q or "list" in q):
-            return self.schema_tools.list_all_files()
-        
-        # Common columns
-        if "common" in q and "column" in q:
-            return self.schema_tools.find_common_columns()
-        
-        # Type mismatches
-        if "mismatch" in q or "inconsisten" in q:
-            return self.schema_tools.detect_type_mismatches()
-        
-        # Semantic type issues
-        if any(phrase in q for phrase in ["semantic", "incorrect type", "wrong type", "data type issue", "type problem"]):
-            return self.schema_tools.detect_semantic_type_issues()
-        
-        # Column name variations
-        if any(phrase in q for phrase in ["column variation", "naming variation", "different name", "same field", "standardize column", "column inconsistency"]):
-            return self.schema_tools.detect_column_name_variations()
-        
-        return None
+            print(f"Error processing query: {e}")
 
     def _scan_directory(self, directory):
         """Scan directory for files."""
@@ -165,14 +128,30 @@ class ChatInterface:
         
         print(f"Scan complete: {file_count} files processed")
 
+    def _show_status(self):
+        """Show current status."""
+        if self.agent:
+            status = self.agent.get_status()
+            print("📊 System Status:")
+            print(f"   LLM Available: {'✅' if status['llm_available'] else '❌'}")
+            if status['llm_available']:
+                print(f"   Model: {status['model_name']}")
+                print(f"   URL: {status['base_url']}")
+        
+        files = self.metadata_store.list_all_files()
+        print(f"   Files Scanned: {len(files)}")
+
     def _show_help(self):
         """Show help message."""
-        print("Commands:")
-        print("  /scan <directory>  - Scan files for schema information")
-        print("  /help             - Show this help")
-        print("  /exit             - Exit TableTalk")
-        print()
-        print("Natural language queries:")
-        print("  'What files do we have?'")
-        print("  'Show schema of orders.csv'")
-        print("  'Find common columns'")
+        if self.agent:
+            print(self.agent.context_manager.get_help_text())
+        else:
+            print("""
+TableTalk Commands:
+  /scan <directory>  - Scan files for schema information
+  /status            - Show system status
+  /help              - Show this help
+  /exit              - Exit TableTalk
+
+Start by scanning a directory: /scan data/
+            """.strip())

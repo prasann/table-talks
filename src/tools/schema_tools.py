@@ -2,15 +2,19 @@
 
 from typing import List, Dict, Any, Optional
 from langchain.tools import Tool
-from langchain.pydantic_v1 import BaseModel, Field
+from pydantic import BaseModel, Field
 import logging
-import os
-import sys
 
-# Add src to path for utils import
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from utils.logger import get_logger
-from metadata.metadata_store import MetadataStore
+try:
+    from ..utils.logger import get_logger
+    from ..metadata.metadata_store import MetadataStore
+except ImportError:
+    # Fallback for direct execution
+    import sys
+    import os
+    sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    from utils.logger import get_logger
+    from metadata.metadata_store import MetadataStore
 
 
 class SchemaTools:
