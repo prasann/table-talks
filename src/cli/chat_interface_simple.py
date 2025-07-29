@@ -110,13 +110,7 @@ class ChatInterface:
         if "schema" in q or "structure" in q:
             files = self.metadata_store.list_all_files()
             for file_info in files:
-                filename = file_info['file_name'].lower()
-                # Check for exact filename match
-                if filename in q:
-                    return self.schema_tools.get_file_schema(file_info['file_name'])
-                # Check for base name without extension (e.g., "orders" matches "orders.csv")
-                base_name = filename.split('.')[0]  # "orders.csv" -> "orders"
-                if base_name in q:
+                if file_info['file_name'].lower() in q:
                     return self.schema_tools.get_file_schema(file_info['file_name'])
         
         # File listing
@@ -130,14 +124,6 @@ class ChatInterface:
         # Type mismatches
         if "mismatch" in q or "inconsisten" in q:
             return self.schema_tools.detect_type_mismatches()
-        
-        # Semantic type issues
-        if any(phrase in q for phrase in ["semantic", "incorrect type", "wrong type", "data type issue", "type problem"]):
-            return self.schema_tools.detect_semantic_type_issues()
-        
-        # Column name variations
-        if any(phrase in q for phrase in ["column variation", "naming variation", "different name", "same field", "standardize column", "column inconsistency"]):
-            return self.schema_tools.detect_column_name_variations()
         
         return None
 
@@ -158,7 +144,7 @@ class ChatInterface:
                     schema_info = self.schema_extractor.extract_from_file(str(file_path))
                     if schema_info:
                         self.metadata_store.store_schema_info(schema_info)
-                        print(f"✓ {file_path.name}: {len(schema_info)} columns")
+                        print(f"✓ {file_path.name}: {len(schema_info['columns'])} columns")
                         file_count += 1
                 except Exception as e:
                     print(f"✗ {file_path.name}: {e}")

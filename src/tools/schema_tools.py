@@ -200,6 +200,215 @@ class SchemaTools:
             self.logger.error(f"Error getting database summary: {str(e)}")
             return f"Error getting database summary: {str(e)}"
     
+    def detect_semantic_type_issues(self, *args, **kwargs) -> str:
+        """Detect columns that likely have incorrect data types based on naming patterns.
+        
+        Returns:
+            Formatted string with semantic type issues
+        """
+        try:
+            files = self.store.list_all_files()
+            issues = []
+            
+            # Common patterns that suggest expected data types
+            type_patterns = {
+                'integer': [
+                    'id', '_id', 'count', 'quantity', 'qty', 'number', 'num', 'age', 'year',
+                    'month', 'day', 'rank', 'position', 'index', 'version'
+                ],
+                'float': [
+                    'amount', 'price', 'cost', 'value', 'rate', 'percentage', 'percent',
+                    'score', 'rating', 'weight', 'height', 'distance', 'salary', 'revenue',
+                    'profit', 'loss', 'balance', 'total', 'subtotal', 'tax', 'fee'
+                ],
+                'datetime': [
+                    'date', 'time', 'created', 'updated', 'modified', 'timestamp',
+                    'start', 'end', 'signup', 'login', 'expires', '_at', '_on'
+                ],
+                'boolean': [
+                    'is_', 'has_', 'can_', 'should_', 'active', 'enabled', 'disabled',
+                    'verified', 'confirmed', 'approved', 'deleted', 'published'
+                ]
+            }
+            
+            for file_info in files:
+                schema = self.store.get_file_schema(file_info['file_name'])
+                
+                for col in schema:
+                    col_name = col['column_name'].lower()
+                    actual_type = col['data_type']
+                    
+                    # Check each pattern
+                    for expected_type, patterns in type_patterns.items():
+                        for pattern in patterns:
+                            if pattern in col_name and actual_type != expected_type:
+                                # Skip if it's a reasonable alternative
+                                if self._is_acceptable_type_alternative(expected_type, actual_type):
+                                    continue
+                                    
+                                issues.append({
+                                    'file': file_info['file_name'],
+                                    'column': col['column_name'],
+                                    'actual_type': actual_type,
+                                    'expected_type': expected_type,
+                                    'reason': f"Column name contains '{pattern}'"
+                                })
+                                break
+            
+            if not issues:
+                return "No semantic data type issues detected."
+            
+            result = [f"Potential data type issues ({len(issues)} found):"]
+            result.append("")
+            
+            for issue in issues:
+                result.append(f"🚨 {issue['file']} - {issue['column']}")
+                result.append(f"   Expected: {issue['expected_type']} | Actual: {issue['actual_type']}")
+                result.append(f"   Reason: {issue['reason']}")
+                result.append("")
+            
+            return "\n".join(result)
+            
+        except Exception as e:
+            self.logger.error(f"Error detecting semantic type issues: {str(e)}")
+            return f"Error detecting semantic type issues: {str(e)}"
+    
+    def _is_acceptable_type_alternative(self, expected: str, actual: str) -> bool:
+        """Check if actual type is an acceptable alternative to expected type."""
+        acceptable_alternatives = {
+            'integer': ['float'],  # float can represent integers
+            'float': ['integer'],  # integers can be monetary values
+            'datetime': ['string'], # dates often stored as strings initially
+        }
+        
+        return actual in acceptable_alternatives.get(expected, [])
+    
+    def detect_column_name_variations(self, *args, **kwargs) -> str:
+        """Detect columns that likely represent the same field but have different naming conventions.
+        
+        Returns:
+            Formatted string with potential column name variations
+        """
+        try:
+            files = self.store.list_all_files()
+            
+            if len(files) < 2:
+                return "Need at least 2 files to detect column name variations."
+            
+            # Get all columns from all files
+            all_columns = []
+            for file_info in files:
+                schema = self.store.get_file_schema(file_info['file_name'])
+                for col in schema:
+                    all_columns.append({
+                        'file': file_info['file_name'],
+                        'column': col['column_name'],
+                        'type': col['data_type'],
+                        'normalized': self._normalize_column_name(col['column_name'])
+                    })
+            
+            # Group by normalized names
+            grouped = {}
+            for col in all_columns:
+                norm_name = col['normalized']
+                if norm_name not in grouped:
+                    grouped[norm_name] = []
+                grouped[norm_name].append(col)
+            
+            # Find variations (same normalized name, different actual names)
+            variations = []
+            for norm_name, cols in grouped.items():
+                if len(cols) > 1:
+                    # Check if they have different actual names
+                    actual_names = set(col['column'] for col in cols)
+                    if len(actual_names) > 1:
+                        variations.append({
+                            'normalized': norm_name,
+                            'columns': cols,
+                            'actual_names': actual_names
+                        })
+            
+            if not variations:
+                return "No column name variations detected."
+            
+            result = [f"Column name variations found ({len(variations)} groups):"]
+            result.append("")
+            
+            for var in variations:
+                result.append(f"🔄 Likely same field: {var['normalized']}")
+                
+                # Group by file for cleaner display
+                by_file = {}
+                for col in var['columns']:
+                    if col['file'] not in by_file:
+                        by_file[col['file']] = []
+                    by_file[col['file']].append(col)
+                
+                for file_name, file_cols in by_file.items():
+                    for col in file_cols:
+                        type_info = f" ({col['type']})" if col['type'] else ""
+                        result.append(f"   📁 {file_name}: {col['column']}{type_info}")
+                
+                # Add suggestion
+                most_common = max(var['actual_names'], key=len)  # Longest name as suggestion
+                result.append(f"   💡 Suggestion: Standardize to '{most_common}'")
+                result.append("")
+            
+            return "\n".join(result)
+            
+        except Exception as e:
+            self.logger.error(f"Error detecting column name variations: {str(e)}")
+            return f"Error detecting column name variations: {str(e)}"
+    
+    def _normalize_column_name(self, name: str) -> str:
+        """Normalize column name for comparison by removing common variations.
+        
+        Args:
+            name: Original column name
+            
+        Returns:
+            Normalized column name
+        """
+        import re
+        
+        # Convert to lowercase
+        normalized = name.lower()
+        
+        # Remove common prefixes/suffixes
+        normalized = re.sub(r'^(tbl_|col_|fld_)', '', normalized)
+        normalized = re.sub(r'(_id|_key|_ref|_code)$', '_id', normalized)
+        
+        # Convert camelCase to snake_case
+        # customerId -> customer_id
+        normalized = re.sub(r'([a-z0-9])([A-Z])', r'\1_\2', normalized).lower()
+        
+        # Remove underscores and spaces for core comparison
+        core = re.sub(r'[_\s-]', '', normalized)
+        
+        # Standardize common variations
+        replacements = {
+            'cust': 'customer',
+            'usr': 'user', 
+            'uid': 'user_id',
+            'cid': 'customer_id',
+            'oid': 'order_id',
+            'pid': 'product_id',
+            'amt': 'amount',
+            'qty': 'quantity',
+            'num': 'number',
+            'dt': 'date',
+            'tm': 'time',
+            'addr': 'address',
+            'desc': 'description',
+            'info': 'information',
+        }
+        
+        for abbrev, full in replacements.items():
+            if abbrev in core:
+                core = core.replace(abbrev, full)
+        
+        return core
+
     def get_langchain_tools(self) -> List[Tool]:
         """Get LangChain Tool objects for use with agents.
         
@@ -236,6 +445,16 @@ class SchemaTools:
                 name="database_summary",
                 description="Get overall statistics about the scanned files and database. Use this for general overview questions.",
                 func=self.get_database_summary,
+            ),
+            Tool(
+                name="detect_semantic_type_issues",
+                description="Detect columns that likely have incorrect data types based on column naming patterns (e.g., 'amount' should be numeric, 'id' should be integer). Use when user asks about data type problems or semantic validation.",
+                func=self.detect_semantic_type_issues,
+            ),
+            Tool(
+                name="detect_column_name_variations",
+                description="Detect columns that likely represent the same field but have different naming conventions (e.g., customerId vs customer_id). Use when user asks about column naming inconsistencies or standardization.",
+                func=self.detect_column_name_variations,
             ),
         ]
         

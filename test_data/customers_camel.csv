@@ -1,0 +1,5 @@
+customerId,firstName,lastName,emailAddr,signupDate,isActive
+1001,John,Doe,john.doe@email.com,2023-01-15,true
+1002,Jane,Smith,jane.smith@email.com,2023-02-20,true
+1003,Bob,Wilson,bob.wilson@email.com,2023-03-10,false
+1004,Alice,Brown,alice.brown@email.com,2023-04-05,true

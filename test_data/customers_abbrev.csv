@@ -1,0 +1,5 @@
+cust_id,usr_name,email_info,join_dt,status
+3001,Kevin Lee,kevin.lee@email.com,2023-09-15,active
+3002,Emma White,emma.white@email.com,2023-10-20,active
+3003,Ryan Clark,ryan.clark@email.com,2023-11-10,inactive
+3004,Maya Patel,maya.patel@email.com,2023-12-05,active

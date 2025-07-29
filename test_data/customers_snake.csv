@@ -1,0 +1,5 @@
+customer_id,first_name,last_name,email_address,signup_dt,active_flag
+2001,Mike,Johnson,mike.johnson@email.com,2023-05-15,1
+2002,Sarah,Davis,sarah.davis@email.com,2023-06-20,1
+2003,Tom,Garcia,tom.garcia@email.com,2023-07-10,0
+2004,Lisa,Martinez,lisa.martinez@email.com,2023-08-05,1
