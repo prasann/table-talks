@@ -4,7 +4,12 @@ from typing import List, Dict, Any, Optional
 from langchain.tools import Tool
 from langchain.pydantic_v1 import BaseModel, Field
 import logging
+import os
+import sys
 
+# Add src to path for utils import
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from utils.logger import get_logger
 from metadata.metadata_store import MetadataStore
 
 
@@ -18,7 +23,7 @@ class SchemaTools:
             metadata_store: MetadataStore instance
         """
         self.store = metadata_store
-        self.logger = logging.getLogger(__name__)
+        self.logger = get_logger("tabletalk.tools")
     
     def get_file_schema(self, file_name: str) -> str:
         """Get schema information for a specific file.
@@ -33,19 +38,16 @@ class SchemaTools:
             schema = self.store.get_file_schema(file_name)
             
             if not schema:
-                return f"No schema found for file: {file_name}"
+                return f"No schema found for: {file_name}"
             
-            result = [f"Schema for {file_name}:"]
-            result.append(f"Total rows: {schema[0]['total_rows']}")
-            result.append(f"Columns ({len(schema)}):")
+            total_rows = schema[0]['total_rows']
+            result = [f"{file_name}: {total_rows} rows, {len(schema)} columns"]
             
             for col in schema:
                 null_pct = (col['null_count'] / col['total_rows']) * 100 if col['total_rows'] > 0 else 0
-                result.append(
-                    f"  - {col['column_name']} ({col['data_type']}): "
-                    f"{col['unique_count']} unique values, "
-                    f"{col['null_count']} nulls ({null_pct:.1f}%)"
-                )
+                null_info = f", {col['null_count']} nulls" if col['null_count'] > 0 else ""
+                
+                result.append(f"  {col['column_name']} ({col['data_type']}): {col['unique_count']} unique{null_info}")
             
             return "\n".join(result)
             
@@ -53,7 +55,7 @@ class SchemaTools:
             self.logger.error(f"Error getting schema for {file_name}: {str(e)}")
             return f"Error retrieving schema for {file_name}: {str(e)}"
     
-    def list_all_files(self) -> str:
+    def list_all_files(self, *args, **kwargs) -> str:
         """List all scanned files with basic information.
         
         Returns:
@@ -63,18 +65,15 @@ class SchemaTools:
             files = self.store.list_all_files()
             
             if not files:
-                return "No files have been scanned yet. Use /scan <directory> to scan files."
+                return "No files scanned yet. Use /scan <directory> to scan files."
             
             result = [f"Scanned files ({len(files)}):"]
             
             for file_info in files:
-                size_str = f"{file_info['file_size_mb']:.1f}MB" if file_info['file_size_mb'] else "Unknown"
-                result.append(
-                    f"  - {file_info['file_name']}: "
-                    f"{file_info['column_count']} columns, "
-                    f"{file_info['total_rows']} rows, "
-                    f"{size_str}"
-                )
+                size_str = f"{file_info['file_size_mb']:.1f}MB" if file_info['file_size_mb'] else "?"
+                rows_str = f"{file_info['total_rows']}" if file_info['total_rows'] else "?"
+                
+                result.append(f"  {file_info['file_name']}: {file_info['column_count']} cols, {rows_str} rows, {size_str}")
             
             return "\n".join(result)
             
@@ -114,7 +113,7 @@ class SchemaTools:
             self.logger.error(f"Error finding columns with name {column_name}: {str(e)}")
             return f"Error searching for column {column_name}: {str(e)}"
     
-    def detect_type_mismatches(self) -> str:
+    def detect_type_mismatches(self, *args, **kwargs) -> str:
         """Detect columns with same name but different types across files.
         
         Returns:
@@ -150,7 +149,7 @@ class SchemaTools:
             self.logger.error(f"Error detecting type mismatches: {str(e)}")
             return f"Error detecting type mismatches: {str(e)}"
     
-    def find_common_columns(self) -> str:
+    def find_common_columns(self, *args, **kwargs) -> str:
         """Find columns that appear in multiple files.
         
         Returns:
@@ -162,15 +161,11 @@ class SchemaTools:
             if not common:
                 return "No common columns found across files."
             
-            result = [f"Common columns across files ({len(common)} found):"]
+            result = [f"Common columns ({len(common)} found):"]
             
             for col in common:
-                type_info = f"({col['data_types']})" if col['type_variations'] > 1 else f"({col['data_types']})"
-                mismatch_warning = " ⚠️ Type mismatch!" if col['type_variations'] > 1 else ""
-                
-                result.append(
-                    f"  - {col['column_name']}: appears in {col['file_count']} files {type_info}{mismatch_warning}"
-                )
+                warning = " (type mismatch)" if col['type_variations'] > 1 else ""
+                result.append(f"  {col['column_name']}: {col['file_count']} files, types: {col['data_types']}{warning}")
                 result.append(f"    Files: {col['files']}")
             
             return "\n".join(result)
@@ -179,7 +174,7 @@ class SchemaTools:
             self.logger.error(f"Error finding common columns: {str(e)}")
             return f"Error finding common columns: {str(e)}"
     
-    def get_database_summary(self) -> str:
+    def get_database_summary(self, *args, **kwargs) -> str:
         """Get overall database statistics.
         
         Returns:

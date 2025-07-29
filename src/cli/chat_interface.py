@@ -10,6 +10,7 @@ from metadata.metadata_store import MetadataStore
 from metadata.schema_extractor import SchemaExtractor
 from tools.schema_tools import SchemaTools
 from agent.llm_agent import LLMAgent
+from utils.logger import get_logger
 
 
 class ChatInterface:
@@ -22,7 +23,7 @@ class ChatInterface:
             config: Configuration dictionary
         """
         self.config = config
-        self.logger = logging.getLogger(__name__)
+        self.logger = get_logger("tabletalk.cli")
         
         # Initialize components
         self.metadata_store = MetadataStore(config['database']['path'])
@@ -155,21 +156,39 @@ class ChatInterface:
             print("You can still use /scan commands to explore files.")
             return
         
-        print("🤔 Processing...")
         try:
+            # Log the query processing (debug only)
+            self.logger.debug(f"Processing natural language query: {query}")
+            
+            # Try direct pattern matching first (faster than agent)
+            direct_response = self._try_direct_response(query)
+            if direct_response:
+                print(direct_response)
+                return
+            
             response = self.agent.query(query)
-            print(f"🤖 {response}")
+            
+            # Clean up and format the response
+            formatted_response = self._format_response(response)
+            print(formatted_response)
+            
         except Exception as e:
-            print(f"❌ Error processing query: {str(e)}")
+            self.logger.error(f"Error processing query: {str(e)}")
+            print(f"❌ Error: {str(e)}")
             
             # Try to provide a direct tool response as fallback
             try:
+                fallback_response = self._try_direct_response(query)
+                if fallback_response:
+                    print(f"\nDirect response: {fallback_response}")
+                    return
+                    
                 if "schema" in query.lower() and any(word in query.lower() for word in ["orders.csv", "customers.csv", "reviews.csv"]):
                     # Extract file name and try direct tool call
                     for filename in ["orders.csv", "customers.csv", "reviews.csv"]:
                         if filename in query.lower():
                             direct_response = self.schema_tools.get_file_schema(filename)
-                            print(f"🔧 Direct tool response:\n{direct_response}")
+                            print(f"\n{direct_response}")
                             return
                 elif "files" in query.lower():
                     direct_response = self.schema_tools.list_all_files()
@@ -269,3 +288,73 @@ Note: LLM agent is not available. Start Ollama to enable natural language querie
                 print(f"    ... and {len(files) - 5} more")
         else:
             print("  No files scanned yet")
+
+    def _format_response(self, response: str) -> str:
+        """Format agent response for clean user display.
+        
+        Args:
+            response: Raw agent response
+            
+        Returns:
+            Formatted response string
+        """
+        if not response:
+            return "No response generated."
+        
+        # Simple cleanup - remove AI prefixes
+        cleaned = response.strip()
+        for prefix in ["AI:", "Assistant:", "Bot:", "Agent:"]:
+            if cleaned.startswith(prefix):
+                cleaned = cleaned[len(prefix):].strip()
+        
+        return cleaned
+    
+    def _format_schema_response(self, schema_info: str, filename: str) -> str:
+        """Format schema information for clean display.
+        
+        Args:
+            schema_info: Raw schema information
+            filename: Name of the file
+            
+        Returns:
+            Formatted schema response
+        """
+        return schema_info  # Return as-is for simplicity
+    
+    def _try_direct_response(self, query: str) -> str:
+        """Try to handle common queries directly without using the agent.
+        
+        Args:
+            query: User query string
+            
+        Returns:
+            Direct response string, or None if no pattern matches
+        """
+        query_lower = query.lower()
+        
+        # Schema queries
+        if "schema" in query_lower or "structure" in query_lower or "describe" in query_lower:
+            # Look for file names
+            files = self.metadata_store.list_all_files()
+            for file_info in files:
+                filename = file_info['file_name']
+                if filename.lower() in query_lower:
+                    return self.schema_tools.get_file_schema(filename)
+        
+        # File listing queries
+        if any(phrase in query_lower for phrase in ["what files", "list files", "files do we have", "show files"]):
+            return self.schema_tools.list_all_files()
+        
+        # Common columns queries
+        if any(phrase in query_lower for phrase in ["common columns", "shared columns", "columns that appear", "find columns"]):
+            return self.schema_tools.find_common_columns()
+        
+        # Type mismatch queries
+        if any(phrase in query_lower for phrase in ["type mismatch", "data type", "inconsisten", "conflict"]):
+            return self.schema_tools.detect_type_mismatches()
+        
+        # Database summary
+        if any(phrase in query_lower for phrase in ["summary", "overview", "status", "database"]):
+            return self.schema_tools.get_database_summary()
+        
+        return None

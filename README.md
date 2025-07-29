@@ -2,62 +2,48 @@
 
 A conversational EDA assistant that enables natural language exploration of data schemas using a local Small Language Model.
 
-## 🎯 What is TableTalk?
-
-TableTalk helps you understand your datasets through natural conversation. Instead of manually inspecting CSV and Parquet files, just ask questions like:
-- "Show me the schema of orders.csv"
-- "Which files have a user_id column?"
-- "Find data type inconsistencies across files"
-
-## ✨ Features
-
-- **Schema Extraction**: Automatically scan CSV and Parquet files
-- **Natural Language Queries**: Ask questions about your data in plain English
-- **Type Mismatch Detection**: Find inconsistencies across files
-- **Local Processing**: Everything runs locally with Ollama + Phi-3
-- **Fast Metadata Storage**: Powered by DuckDB
+Ask questions like "Show me the schema of orders.csv" or "Which files have user_id?" instead of manually inspecting CSV and Parquet files.
 
 ## 🚀 Quick Start
 
-### Option 1: Automated Setup (Recommended)
+### Prerequisites
+- Python 3.11+
+- Ollama with Phi-3 model (`ollama serve` + `ollama pull phi3:mini`)
+
+### Installation
 ```bash
-# Clone and setup (if from repository)
-git clone <repo-url>
-cd table-talk
-./setup.sh
-
-# Start TableTalk
-source venv/bin/activate
-python src/main.py
-```
-
-### Option 2: Manual Setup
-```bash
-# Prerequisites check
-python3 --version  # Should be 3.11+
-ollama --version    # Install from https://ollama.ai if needed
-
-# Setup environment
 python -m venv venv
-source venv/bin/activate  # On macOS/Linux
-
-# Install dependencies
+source venv/bin/activate  # Always activate first!
 pip install -r requirements.txt
-
-# Start Ollama and pull model
-ollama serve &
-ollama pull phi3:mini
-
-# Start TableTalk
 python src/main.py
 ```
 
 ### First Steps
-1. **Activate environment**: `source venv/bin/activate` (important!)
-2. **Test with sample data**: `/scan data/sample`
-3. **Ask a question**: "What files do we have?"
-4. **Explore schemas**: "Show me the schema of orders.csv"
-5. **Find patterns**: "Which files have customer_id?"
+```bash
+TableTalk> /scan data/sample          # Scan sample data
+TableTalk> What files do we have?     # See available files  
+TableTalk> Show me the schema of orders.csv  # Explore structure
+TableTalk> /exit                      # Done
+```
+
+## � Documentation
+
+- **[Usage Guidelines](USAGE.md)** - Commands, examples, and best practices
+- **[Troubleshooting](TROUBLESHOOTING.md)** - Common issues and solutions  
+- **[Design Document](vibe-collab/design_document.md)** - Architecture and technical details
+
+## 📁 Project Structure
+
+```
+src/
+├── metadata/           # Schema extraction & DuckDB storage
+├── tools/              # LangChain tool functions  
+├── agent/              # LLM agent & context management
+├── cli/                # Interactive interface
+└── main.py             # Entry point
+```
+
+Ready to explore your data schemas! 🚀
 
 ## 📋 Available Commands
 

@@ -4,36 +4,18 @@ import os
 import sys
 import yaml
 import logging
+import warnings
 from pathlib import Path
+
+# Suppress LangChain deprecation warnings for cleaner output
+warnings.filterwarnings("ignore", category=DeprecationWarning, module="langchain")
+warnings.filterwarnings("ignore", message=".*deprecated.*", category=DeprecationWarning)
 
 # Add src directory to Python path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from cli.chat_interface import ChatInterface
-
-
-def setup_logging(config: dict) -> None:
-    """Set up logging configuration.
-    
-    Args:
-        config: Configuration dictionary
-    """
-    log_config = config.get('logging', {})
-    log_level = log_config.get('level', 'INFO')
-    log_file = log_config.get('file', './logs/tabletalk.log')
-    
-    # Create logs directory
-    Path(log_file).parent.mkdir(parents=True, exist_ok=True)
-    
-    # Configure logging
-    logging.basicConfig(
-        level=getattr(logging, log_level.upper()),
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-        handlers=[
-            logging.FileHandler(log_file),
-            logging.StreamHandler(sys.stdout)
-        ]
-    )
+from utils.logger import setup_logger
 
 
 def load_config() -> dict:
@@ -91,9 +73,10 @@ def main():
     # Load configuration
     config = load_config()
     
-    # Set up logging
-    setup_logging(config)
-    logger = logging.getLogger(__name__)
+    # Set up centralized logging (debug to files, warnings to console)
+    log_level = config.get('logging', {}).get('level', 'INFO')
+    setup_logger(level=getattr(logging, log_level.upper()))
+    logger = logging.getLogger("tabletalk")
     
     # Check Ollama connection
     ollama_url = config['llm']['base_url']
@@ -102,6 +85,9 @@ def main():
         print("   Natural language queries will not be available.")
         print("   Start Ollama with: ollama serve")
         print()
+        logger.warning(f"Ollama connection failed at {ollama_url}")
+    else:
+        logger.info(f"Ollama connection successful at {ollama_url}")
     
     try:
         # Initialize and start chat interface

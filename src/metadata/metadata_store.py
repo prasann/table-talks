@@ -2,9 +2,15 @@
 
 import duckdb
 import logging
+import os
+import sys
 from pathlib import Path
 from typing import List, Dict, Any, Optional
 from datetime import datetime
+
+# Add src to path for utils import
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from utils.logger import get_logger
 
 
 class MetadataStore:
@@ -18,7 +24,7 @@ class MetadataStore:
         """
         self.db_path = Path(db_path)
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
-        self.logger = logging.getLogger(__name__)
+        self.logger = get_logger("tabletalk.metadata")
         
         # Initialize database and create tables
         self._init_database()

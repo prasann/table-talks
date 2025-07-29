@@ -2,9 +2,14 @@
 
 import pandas as pd
 import logging
+import os
+import sys
 from pathlib import Path
 from typing import List, Dict, Any, Optional
-import os
+
+# Add src to path for utils import
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from utils.logger import get_logger
 
 
 class SchemaExtractor:
@@ -19,7 +24,7 @@ class SchemaExtractor:
         """
         self.max_file_size_mb = max_file_size_mb
         self.sample_size = sample_size
-        self.logger = logging.getLogger(__name__)
+        self.logger = get_logger("tabletalk.extractor")
         
         # Supported file formats
         self.supported_formats = {'.csv', '.parquet'}

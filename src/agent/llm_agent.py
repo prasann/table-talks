@@ -1,12 +1,17 @@
 """LLM agent integration with Ollama and LangChain."""
 
 import logging
+import os
+import sys
 from typing import List, Dict, Any, Optional
 from langchain.agents import initialize_agent, AgentType
 from langchain.memory import ConversationBufferWindowMemory
 from langchain.schema import BaseMessage
 from langchain_community.llms import Ollama
 
+# Add src to path for utils import
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from utils.logger import get_logger
 from agent.context_manager import ContextManager
 from tools.schema_tools import SchemaTools
 
@@ -35,7 +40,7 @@ class LLMAgent:
         self.base_url = base_url
         self.temperature = temperature
         self.max_tokens = max_tokens
-        self.logger = logging.getLogger(__name__)
+        self.logger = get_logger("tabletalk.agent")
         
         # Initialize components
         self.context_manager = ContextManager()
@@ -76,15 +81,16 @@ class LLMAgent:
                 return_messages=True
             )
             
-            # Create agent
+            # Create agent with strict limits for fast responses
             self.agent = initialize_agent(
                 tools=tools,
                 llm=self.llm,
                 agent=AgentType.CONVERSATIONAL_REACT_DESCRIPTION,
                 memory=self.memory,
-                verbose=True,
+                verbose=False,  # Suppress verbose chain output
                 handle_parsing_errors=True,
-                max_iterations=3
+                max_iterations=2,  # Reduced from 3 to 2 for faster responses
+                max_execution_time=30  # 30 second timeout
             )
             
             self.logger.info(f"Agent initialized with {len(tools)} tools")
@@ -119,11 +125,17 @@ Always use the provided tools to get accurate information and provide clear, spe
             
             self.logger.debug(f"Processing query with intent: {intent}, parameter: {parameter}")
             
-            # Use the agent to process the query
-            response = self.agent.run(user_input)
+            # Use the agent to process the query with invoke instead of deprecated run
+            response = self.agent.invoke({"input": user_input})
+            
+            # Extract the output from the response
+            if isinstance(response, dict) and 'output' in response:
+                result = response['output'].strip() if response['output'] else "I couldn't process that query."
+            else:
+                result = str(response).strip() if response else "I couldn't process that query."
             
             # Filter response length if needed
-            filtered_response = self.context_manager.filter_context_for_llm(response)
+            filtered_response = self.context_manager.filter_context_for_llm(result)
             
             return filtered_response
             

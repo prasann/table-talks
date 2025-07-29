@@ -1,8 +1,14 @@
 """Context management and query intent detection."""
 
 import logging
+import os
+import sys
 from typing import Dict, List, Optional, Tuple
 import re
+
+# Add src to path for utils import
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from utils.logger import get_logger
 
 
 class ContextManager:
@@ -10,7 +16,7 @@ class ContextManager:
     
     def __init__(self):
         """Initialize the context manager."""
-        self.logger = logging.getLogger(__name__)
+        self.logger = get_logger("tabletalk.context")
         
         # Intent patterns for query classification
         self.intent_patterns = {
