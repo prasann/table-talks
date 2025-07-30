@@ -18,10 +18,15 @@ python -m venv tabletalk-env
 source tabletalk-env/bin/activate  # macOS/Linux
 pip install -r requirements.txt
 
-# 2. Install Ollama and pull model
+# 2. Install Ollama and setup function calling
 curl -fsSL https://ollama.ai/install.sh | sh
 ollama serve
+
+# For basic functionality (any model works)
 ollama pull phi3:mini
+
+# For advanced function calling (recommended)
+./setup_phi4_function_calling.sh
 
 # 3. Start TableTalk
 python src/main.py
@@ -69,22 +74,22 @@ python src/main.py
 
 ## 🏗️ Architecture
 
-**Pure LLM Design** - Clean 3-component architecture:
-- **LLM Agent**: Query orchestration and response formatting
-- **Context Manager**: Intelligent query parsing and tool selection
-- **Schema Tools**: 8 specialized analysis functions
+**Intelligent Dual-Path Design** - Optimized for different model capabilities:
+- **Advanced Path**: Native function calling for phi4-mini-fc models
+- **Standard Path**: Structured output parsing for phi3/phi4 models
+- **Fallback Path**: Pattern matching when LLM unavailable
 
 ## 📋 Requirements
 
 - Python 3.9+
-- Ollama with phi3:mini model
+- Ollama with any Phi model
 - ~2GB RAM for model
 - CSV/Parquet files in `data/` folder
 
 ## 🔧 Technical Details
 
 - **Database**: DuckDB for fast metadata storage
-- **LLM**: Phi-3 mini via Ollama for local inference
+- **LLM**: Auto-detects model capabilities (function calling vs structured output)
 - **Files**: Supports CSV and Parquet up to 100MB
 - **Response Time**: 1-3 seconds typical
 

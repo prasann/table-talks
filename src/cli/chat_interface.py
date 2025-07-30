@@ -32,10 +32,16 @@ class ChatInterface:
                 model_name=config['llm']['model'],
                 base_url=config['llm']['base_url']
             )
-            if self.agent.check_llm_availability():
-                print("🤖 LLM agent initialized with intelligent query parsing!")
+            
+            # Get status to display the right message
+            status = self.agent.get_status()
+            if status.get('function_calling'):
+                print("🚀 Advanced mode: Native function calling enabled!")
+            elif status.get('llm_available'):
+                print("🤖 Intelligent mode: LLM query parsing enabled!")
             else:
-                print("📝 Running in basic mode (LLM not available)")
+                print("📝 Basic mode: Pattern matching only")
+                
         except Exception as e:
             print(f"⚠️  LLM agent not available: {e}")
             self.agent = None
@@ -133,7 +139,9 @@ class ChatInterface:
         if self.agent:
             status = self.agent.get_status()
             print("📊 System Status:")
+            print(f"   Strategy: {status.get('strategy_name', 'Unknown')} ({status.get('strategy_type', 'Unknown')})")
             print(f"   LLM Available: {'✅' if status['llm_available'] else '❌'}")
+            print(f"   Function Calling: {'✅' if status.get('function_calling') else '❌'}")
             if status['llm_available']:
                 print(f"   Model: {status['model_name']}")
                 print(f"   URL: {status['base_url']}")
@@ -143,10 +151,7 @@ class ChatInterface:
 
     def _show_help(self):
         """Show help message."""
-        if self.agent:
-            print(self.agent.context_manager.get_help_text())
-        else:
-            print("""
+        print("""
 TableTalk Commands:
   /scan <directory>  - Scan files for schema information
   /status            - Show system status
@@ -154,4 +159,10 @@ TableTalk Commands:
   /exit              - Exit TableTalk
 
 Start by scanning a directory: /scan data/
-            """.strip())
+
+Query Examples:
+  "Show me the customers table"
+  "What columns are in orders?"
+  "How many rows are in each file?"
+  "Show me tables with email addresses"
+        """.strip())

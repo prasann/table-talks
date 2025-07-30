@@ -7,10 +7,10 @@ database:
 
 # LLM settings
 llm:
-  model: "phi3:mini"
+  model: "phi4-mini-fc"  # Use function calling enabled model
   base_url: "http://localhost:11434"
   temperature: 0.1
-  max_tokens: 1000
+  max_tokens: 3000
 
 # File scanning settings
 scanner:

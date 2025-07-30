@@ -23,7 +23,7 @@ TableTalk is a conversational EDA assistant for exploring data schemas using loc
 
 ## 🏛️ Architecture Overview
 
-TableTalk has a simple 3-layer architecture:
+TableTalk has a clean 4-layer architecture with strategy pattern for query processing:
 
 ```
 ┌─────────────────────────────────────────────────┐
@@ -35,16 +35,18 @@ TableTalk has a simple 3-layer architecture:
                   │
 ┌─────────────────▼───────────────────────────────┐
 │                LLM Agent                       │
-│         • Ollama connection                    │
+│         • Strategy factory                     │
 │         • Query orchestration                  │
 │         • Response formatting                  │
 └─────────────────┬───────────────────────────────┘
                   │
 ┌─────────────────▼───────────────────────────────┐
-│            Context Manager                     │
-│         • Pure LLM query parsing               │
-│         • Tool selection                       │
-│         • Plan execution                       │
+│           Query Strategy Layer                 │
+│    ┌─────────────────┐  ┌─────────────────┐     │
+│    │ Function Calling│  │ Structured      │     │
+│    │ Strategy        │  │ Output Strategy │     │
+│    │ (phi4-mini-fc)  │  │ (phi3)          │     │
+│    └─────────────────┘  └─────────────────┘     │
 └─────────────────┬───────────────────────────────┘
                   │
 ┌─────────────────▼───────────────────────────────┐
@@ -66,45 +68,71 @@ TableTalk has a simple 3-layer architecture:
 
 ## 🧩 Core Components
 
-### 1. ContextManager - Pure LLM Intelligence
+### 1. Query Strategy Pattern - Intelligent Processing
 
-Handles all query processing using LLM:
+Clean separation of query processing approaches:
 
 ```python
-class ContextManager:
+class QueryProcessingStrategy(ABC):
+    @abstractmethod
     def parse_query(self, query: str) -> Dict[str, Any]:
-        """Pure LLM parsing for all queries"""
-        return self._llm_parse(query)
+        """Parse user query and determine tool to use"""
     
-    def execute_plan(self, plan: Dict, schema_tools) -> str:
-        """Execute single tool and return results"""
+    @abstractmethod  
+    def execute_plan(self, plan: Dict, schema_tools) -> Dict[str, Any]:
+        """Execute plan using schema tools"""
         
-    def synthesize_response(self, results: str, query: str) -> str:
-        """Format results for display"""
+    @abstractmethod
+    def synthesize_response(self, query: str, plan: Dict, results: str) -> Dict[str, Any]:
+        """Synthesize final response"""
+```
+
+#### Function Calling Strategy (phi4-mini-fc)
+- **Native Ollama function calling**: Direct API calls with tool definitions
+- **200 lines vs 400+**: Dramatically simplified from old context manager
+- **Auto-tool selection**: Model chooses appropriate schema tool
+- **Robust validation**: Parameter checking and fallback logic
+
+#### Structured Output Strategy (phi3)  
+- **LangChain integration**: Structured prompting with JSON parsing
+- **Fallback support**: Multiple parsing methods for reliability
+- **Pattern extraction**: Regex fallbacks when structured parsing fails
+
+### 2. Strategy Factory - Auto-Detection
+
+```python
+class QueryStrategyFactory:
+    def create_strategy(self, model_name: str, ...) -> QueryProcessingStrategy:
+        """Auto-detect model capabilities and create appropriate strategy"""
+        if self._supports_function_calling(model_name):
+            return FunctionCallingStrategy(...)
+        else:
+            return StructuredOutputStrategy(...)
 ```
 
 **Features:**
-- Pure LLM approach (no regex patterns)
-- Intelligent tool selection from 8 available tools
-- Graceful fallback to file listing if LLM unavailable
+- Model capability detection (phi4-mini-fc → function calling, phi3 → structured)
+- Automatic strategy selection
+- Clean factory pattern
 
-### 2. LLMAgent - Simple Orchestrator
+### 3. LLM Agent - Strategy Orchestrator
 
 ```python
 class LLMAgent:
-    def query(self, user_query: str) -> str:
-        """Single entry point for all queries"""
-        plan = self.context_manager.parse_query(user_query)
-        results = self.context_manager.execute_plan(plan, self.schema_tools)
-        return self.context_manager.synthesize_response(results, user_query)
+    def process_query(self, query: str) -> Dict[str, Any]:
+        """Process query using appropriate strategy"""
+        parsing_result = self.query_strategy.parse_query(query)
+        execution_result = self.query_strategy.execute_plan(parsing_result["parsed_query"], self.schema_tools)
+        synthesis_result = self.query_strategy.synthesize_response(query, parsing_result["parsed_query"], execution_result["result"])
+        return synthesis_result
 ```
 
 **Responsibilities:**
-- Ollama connection management
-- Query routing to ContextManager
-- Response formatting
+- Strategy initialization via factory
+- Query processing orchestration  
+- Error handling and response formatting
 
-### 3. ChatInterface - CLI
+### 4. ChatInterface - CLI
 
 ```python
 class ChatInterface:
@@ -115,17 +143,28 @@ class ChatInterface:
 **Features:**
 - Commands: `/scan`, `/help`, `/status`, `/exit`
 - Natural language query processing
-- Status indicators
+- Strategy status indicators
 
 ---
 
 ## 🔧 Design Decisions
 
-### Pure LLM Architecture
-- **Single processing path**: All queries handled by LLM
-- **No regex patterns**: Consistent intelligent processing
-- **Simple codebase**: Easier to understand and maintain
-- **Natural language**: Works for any query complexity
+### Strategy Pattern Architecture
+- **Clean separation**: Function calling vs structured output approaches
+- **Model-specific optimization**: Phi4-mini-fc native function calling, Phi3 structured prompting
+- **Simplified codebase**: 200 lines vs 400+ line monolithic context manager
+- **Future-proof**: Easy to add new strategies for different model types
+
+### Auto-Detection Strategy Selection
+- **Zero configuration**: Automatically chooses best approach per model
+- **Consistent interface**: All strategies implement same interface
+- **Graceful fallback**: Pattern-based fallback when LLM unavailable
+
+### Function Calling First
+- **Native tool calling**: Direct Ollama API integration for supported models
+- **Intelligent selection**: Model chooses appropriate tool based on query
+- **Parameter validation**: Robust checking of tool parameters
+- **Enhanced logging**: Detailed debugging for function calls
 
 ### Local-First Processing
 - **Privacy**: All data stays local
@@ -135,29 +174,46 @@ class ChatInterface:
 
 ### Tool-Based Design
 - **8 schema analysis tools**: Each with specific purpose
-- **LLM tool selection**: Intelligent choice based on query
+- **Strategy-based selection**: Function calling or structured output tool selection
 - **Extensible**: Easy to add new analysis functions
 
 ---
 
 ## 📊 Data Flow
 
-### Query Processing
+### Query Processing with Strategy Pattern
 ```
 Natural Language Query
     ↓
-LLM Parsing → Tool Selection
+Strategy Factory → Auto-detect Model Capabilities  
     ↓
+Function Calling Strategy          Structured Output Strategy
+(phi4-mini-fc)                    (phi3)
+    ↓                                 ↓
+Native Ollama Function Calls      LangChain + JSON Parsing
+    ↓                                 ↓
+Tool Selection & Validation       Pattern Extraction Fallback
+    ↓                                 ↓
+    └─────────────┬─────────────────┘
+                  ↓
 Execute Schema Tool
     ↓
 Format Response
 ```
 
-### Examples
+### Strategy Selection Examples
 ```
-"What files do we have?" → list_files()
-"Find type mismatches" → detect_type_mismatches()
-"Schema of orders.csv" → get_file_schema("orders.csv")
+Model: "phi4-mini-fc" → Function Calling Strategy
+Model: "phi3"         → Structured Output Strategy  
+Model: "custom"       → Structured Output Strategy (default)
+```
+
+### Function Calling Examples
+```
+"compare schemas across files" → detect_type_mismatches()
+"Which files have user_id?"    → find_columns(column_name="user_id")
+"Give me a database summary"   → database_summary()
+"Find data quality issues"     → database_summary()
 ```
 
 ---
@@ -224,20 +280,33 @@ def tool_function(parameter: str) -> str:
 
 ##  Current Status
 
-### ✅ Implemented
-- Pure LLM architecture with single processing path
-- 8 schema analysis tools with intelligent selection
-- Local Phi-3 integration via Ollama
-- Clean CLI with commands and natural language
-- DuckDB metadata storage with CSV/Parquet support
-- Graceful fallback when LLM unavailable
+### ✅ Implemented  
+- **Strategy pattern architecture** with clean separation of concerns
+- **Function calling strategy** for phi4-mini-fc with native Ollama integration
+- **Structured output strategy** for phi3 with LangChain + fallback parsing
+- **Auto-detection factory** for model capability-based strategy selection
+- **8 schema analysis tools** with intelligent strategy-based selection
+- **Enhanced error handling** with proper dictionary return formats
+- **Robust parameter validation** and graceful fallback logic
+- **Local Phi-3/Phi-4 integration** via Ollama with dual model support
+- **Clean CLI** with commands and natural language
+- **DuckDB metadata storage** with CSV/Parquet support
 
 ### 🎯 Benefits
-- **Maintainability**: Simple codebase, no regex patterns
-- **Consistency**: All queries handled intelligently
-- **Privacy**: Complete local processing
-- **Performance**: Fast local inference
-- **User Experience**: Natural language for everything
+- **Maintainability**: Clean strategy pattern, 200 lines vs 400+ monolithic code
+- **Flexibility**: Different processing approaches for different model capabilities  
+- **Consistency**: All strategies implement uniform interface
+- **Performance**: Native function calling dramatically faster for supported models
+- **Privacy**: Complete local processing with multiple model options
+- **User Experience**: Natural language with intelligent tool selection
+- **Future-proof**: Easy to add new strategies for emerging model types
+
+### 🚀 Recent Improvements
+- **Eliminated complex context manager** in favor of strategy pattern
+- **Fixed function calling integration** with proper Ollama API usage
+- **Added parameter validation** to prevent invalid tool calls
+- **Enhanced logging** for debugging function calls and strategy selection
+- **Improved tool descriptions** for better model understanding
 
 ---
 
