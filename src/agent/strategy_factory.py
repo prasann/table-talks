@@ -8,6 +8,7 @@ try:
     from .query_strategy import QueryProcessingStrategy
     from .function_calling_strategy import FunctionCallingStrategy
     from .structured_output_strategy import StructuredOutputStrategy
+    from .sql_agent_strategy import SQLAgentStrategy
 except ImportError:
     # Fallback for direct execution
     import sys
@@ -17,6 +18,7 @@ except ImportError:
     from agent.query_strategy import QueryProcessingStrategy
     from agent.function_calling_strategy import FunctionCallingStrategy
     from agent.structured_output_strategy import StructuredOutputStrategy
+    from agent.sql_agent_strategy import SQLAgentStrategy
 
 
 class QueryStrategyFactory:
@@ -30,20 +32,34 @@ class QueryStrategyFactory:
                        model_name: str, 
                        base_url: str = "http://localhost:11434",
                        llm_agent: Optional[Any] = None,
-                       schema_tools: Optional[Any] = None) -> QueryProcessingStrategy:
-        """Create the appropriate strategy based on model capabilities.
+                       schema_tools: Optional[Any] = None,
+                       strategy_type: Optional[str] = None) -> QueryProcessingStrategy:
+        """Create the appropriate strategy based on model capabilities or explicit type.
         
         Args:
             model_name: Name of the LLM model
             base_url: Base URL for Ollama API
             llm_agent: LLM agent instance (for structured output strategy)
             schema_tools: Schema tools instance (for function calling strategy)
+            strategy_type: Explicit strategy type ("function_calling", "structured_output", "sql_agent")
             
         Returns:
             Appropriate QueryProcessingStrategy instance
         """
         
-        # Determine strategy based on model capabilities
+        # If explicit strategy type is specified, use it
+        if strategy_type:
+            if strategy_type == "sql_agent":
+                self.logger.info(f"Creating SQLAgentStrategy for model: {model_name}")
+                return SQLAgentStrategy(llm_agent=llm_agent)
+            elif strategy_type == "function_calling":
+                self.logger.info(f"Creating FunctionCallingStrategy for model: {model_name}")
+                return FunctionCallingStrategy(base_url=base_url, model=model_name, schema_tools=schema_tools)
+            elif strategy_type == "structured_output":
+                self.logger.info(f"Creating StructuredOutputStrategy for model: {model_name}")
+                return StructuredOutputStrategy(llm_agent=llm_agent)
+        
+        # Auto-determine strategy based on model capabilities
         if self._supports_function_calling(model_name):
             self.logger.info(f"Creating FunctionCallingStrategy for model: {model_name}")
             return FunctionCallingStrategy(base_url=base_url, model=model_name, schema_tools=schema_tools)
@@ -99,6 +115,15 @@ class QueryStrategyFactory:
                 "capabilities": ["structured_prompting", "json_parsing", "pattern_fallback"],
                 "performance": "good",
                 "recommended": False
+            },
+            "sql_agent": {
+                "name": "SQL Agent Strategy",
+                "description": "LangChain SQL agent for natural language to SQL conversion",
+                "supported_models": ["phi3", "phi4", "llama2", "mistral", "gpt-4", "claude"],
+                "capabilities": ["natural_language_to_sql", "complex_query_analysis", "metadata_exploration"],
+                "performance": "excellent",
+                "recommended": True,
+                "use_case": "Advanced data analysis and exploration"
             }
         }
     

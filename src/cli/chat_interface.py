@@ -30,12 +30,15 @@ class ChatInterface:
             self.agent = LLMAgent(
                 schema_tools=self.schema_tools,
                 model_name=config['llm']['model'],
-                base_url=config['llm']['base_url']
+                base_url=config['llm']['base_url'],
+                strategy_type=config['llm'].get('strategy_type')  # Allow explicit strategy selection
             )
             
             # Get status to display the right message
             status = self.agent.get_status()
-            if status.get('function_calling'):
+            if status.get('sql_agent'):
+                print("🚀 SQL Agent mode: Natural language to SQL conversion enabled!")
+            elif status.get('function_calling'):
                 print("🚀 Advanced mode: Native function calling enabled!")
             elif status.get('llm_available'):
                 print("🤖 Intelligent mode: LLM query parsing enabled!")
@@ -94,6 +97,11 @@ class ChatInterface:
                 print("Usage: /scan <directory>")
                 return
             self._scan_directory(parts[1])
+        elif cmd == '/strategy':
+            if len(parts) < 2:
+                self._show_strategies()
+            else:
+                self._switch_strategy(parts[1])
         else:
             print(f"Unknown command: {cmd}")
             print("Use /help for available commands")
@@ -142,12 +150,56 @@ class ChatInterface:
             print(f"   Strategy: {status.get('strategy_name', 'Unknown')} ({status.get('strategy_type', 'Unknown')})")
             print(f"   LLM Available: {'✅' if status['llm_available'] else '❌'}")
             print(f"   Function Calling: {'✅' if status.get('function_calling') else '❌'}")
+            print(f"   SQL Agent: {'✅' if status.get('sql_agent') else '❌'}")
             if status['llm_available']:
                 print(f"   Model: {status['model_name']}")
                 print(f"   URL: {status['base_url']}")
         
         files = self.metadata_store.list_all_files()
         print(f"   Files Scanned: {len(files)}")
+    
+    def _show_strategies(self):
+        """Show available strategies."""
+        if not self.agent:
+            print("Agent not available")
+            return
+            
+        strategies = self.agent.get_available_strategies()
+        current_status = self.agent.get_status()
+        current_type = current_status.get('strategy_type', 'unknown')
+        
+        print("📋 Available Strategies:")
+        for strategy_type, info in strategies.items():
+            current_marker = " (current)" if strategy_type == current_type else ""
+            print(f"   {strategy_type}{current_marker}: {info['name']}")
+            print(f"      {info['description']}")
+            print(f"      Performance: {info['performance']} | Recommended: {'✅' if info.get('recommended') else '❌'}")
+            if 'use_case' in info:
+                print(f"      Use case: {info['use_case']}")
+        
+        print("\nSwitch with: /strategy <type>")
+    
+    def _switch_strategy(self, strategy_type):
+        """Switch to a different strategy."""
+        if not self.agent:
+            print("Agent not available")
+            return
+        
+        success = self.agent.switch_strategy(strategy_type)
+        if success:
+            status = self.agent.get_status()
+            print(f"✅ Switched to {status['strategy_name']}")
+            
+            # Show helpful info about the new strategy
+            if strategy_type == "sql_agent":
+                print("🚀 SQL Agent mode: You can now ask complex analytical questions!")
+                print("Example: 'Which files have more than 5 columns and over 1000 rows?'")
+            elif strategy_type == "function_calling":
+                print("🔧 Function Calling mode: Precise tool selection enabled!")
+            elif strategy_type == "structured_output":
+                print("📝 Structured Output mode: LLM-guided query parsing enabled!")
+        else:
+            print(f"❌ Failed to switch to {strategy_type}")
 
     def _show_help(self):
         """Show help message."""
@@ -155,6 +207,8 @@ class ChatInterface:
 TableTalk Commands:
   /scan <directory>  - Scan files for schema information
   /status            - Show system status
+  /strategy          - Show available strategies
+  /strategy <type>   - Switch to a different strategy (sql_agent, function_calling, structured_output)
   /help              - Show this help
   /exit              - Exit TableTalk
 
@@ -165,4 +219,9 @@ Query Examples:
   "What columns are in orders?"
   "How many rows are in each file?"
   "Show me tables with email addresses"
+  
+SQL Agent Examples (when using sql_agent strategy):
+  "Which files have more than 10 columns?"
+  "Find files where the same column has different data types"
+  "Show me files with the highest null value percentages"
         """.strip())

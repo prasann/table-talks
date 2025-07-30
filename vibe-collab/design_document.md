@@ -47,6 +47,11 @@ TableTalk has a clean 4-layer architecture with strategy pattern for query proce
 │    │ Strategy        │  │ Output Strategy │     │
 │    │ (phi4-mini-fc)  │  │ (phi3)          │     │
 │    └─────────────────┘  └─────────────────┘     │
+│    ┌─────────────────┐                          │
+│    │ SQL Agent       │  📊 NEW STRATEGY         │
+│    │ Strategy        │  Natural Language → SQL  │
+│    │ (LangChain)     │  Advanced Analytics      │
+│    └─────────────────┘                          │
 └─────────────────┬───────────────────────────────┘
                   │
 ┌─────────────────▼───────────────────────────────┐
@@ -98,13 +103,26 @@ class QueryProcessingStrategy(ABC):
 - **Fallback support**: Multiple parsing methods for reliability
 - **Pattern extraction**: Regex fallbacks when structured parsing fails
 
+#### SQL Agent Strategy (LangChain) 📊 NEW
+- **Natural Language to SQL**: Advanced query conversion using LangChain SQL agents
+- **Complex Analytics**: Multi-table analysis, statistical queries, pattern detection
+- **Safety First**: Read-only operations with query validation
+- **Intelligent Planning**: Automatic query breakdown and execution
+- **Fallback Support**: Uses schema_tools when SQL agent unavailable
+
 ### 2. Strategy Factory - Auto-Detection
 
 ```python
 class QueryStrategyFactory:
-    def create_strategy(self, model_name: str, ...) -> QueryProcessingStrategy:
+    def create_strategy(self, model_name: str, strategy_type: str = None, ...) -> QueryProcessingStrategy:
         """Auto-detect model capabilities and create appropriate strategy"""
-        if self._supports_function_calling(model_name):
+        if strategy_type == "sql_agent":
+            return SQLAgentStrategy(...)
+        elif strategy_type == "function_calling":
+            return FunctionCallingStrategy(...)
+        elif strategy_type == "structured_output":
+            return StructuredOutputStrategy(...)
+        elif self._supports_function_calling(model_name):
             return FunctionCallingStrategy(...)
         else:
             return StructuredOutputStrategy(...)
@@ -112,8 +130,9 @@ class QueryStrategyFactory:
 
 **Features:**
 - Model capability detection (phi4-mini-fc → function calling, phi3 → structured)
-- Automatic strategy selection
-- Clean factory pattern
+- Explicit strategy selection via strategy_type parameter
+- Automatic strategy selection when strategy_type is None
+- Clean factory pattern with SQL Agent support
 
 ### 3. LLM Agent - Strategy Orchestrator
 
@@ -141,9 +160,10 @@ class ChatInterface:
 ```
 
 **Features:**
-- Commands: `/scan`, `/help`, `/status`, `/exit`
+- Commands: `/scan`, `/help`, `/status`, `/strategy`, `/exit`
 - Natural language query processing
-- Strategy status indicators
+- Strategy switching capability (`/strategy sql_agent`)
+- Strategy status indicators (🚀 SQL Agent, 🔧 Function Calling, 📝 Structured Output)
 
 ---
 
@@ -187,18 +207,51 @@ Natural Language Query
     ↓
 Strategy Factory → Auto-detect Model Capabilities  
     ↓
-Function Calling Strategy          Structured Output Strategy
-(phi4-mini-fc)                    (phi3)
-    ↓                                 ↓
-Native Ollama Function Calls      LangChain + JSON Parsing
-    ↓                                 ↓
-Tool Selection & Validation       Pattern Extraction Fallback
-    ↓                                 ↓
-    └─────────────┬─────────────────┘
-                  ↓
-Execute Schema Tool
-    ↓
-Format Response
+```
+Function Calling Strategy          Structured Output Strategy          SQL Agent Strategy
+(phi4-mini-fc)                    (phi3)                               (LangChain)
+    ↓                                 ↓                                     ↓
+Native Ollama Function Calls      LangChain + JSON Parsing           NL → SQL Conversion
+    ↓                                 ↓                                     ↓
+Tool Selection & Validation       Pattern Extraction Fallback        Query Planning & Execution
+    ↓                                 ↓                                     ↓
+    └─────────────┬─────────────────┬─────────────────────────────────────┘
+                  ↓                 ↓                                     ↓
+Execute Schema Tool           Execute Schema Tool                  Execute SQL Query
+    ↓                            ↓                                     ↓
+Format Response             Format Response                    Format Response
+```
+
+### Strategy Selection Examples
+```
+Model: "phi4-mini-fc" → Function Calling Strategy
+Model: "phi3"         → Structured Output Strategy  
+Model: "custom"       → Structured Output Strategy (default)
+Strategy: "sql_agent" → SQL Agent Strategy (explicit)
+```
+
+### Query Processing Examples
+
+#### Function Calling
+```
+"compare schemas across files" → detect_type_mismatches()
+"Which files have user_id?"    → find_columns(column_name="user_id")
+"Give me a database summary"   → database_summary()
+```
+
+#### SQL Agent 📊 NEW
+```
+"Which files have more than 10 columns?" 
+    → SELECT file_name, COUNT(*) as cols FROM schema_info GROUP BY file_name HAVING COUNT(*) > 10
+
+"Find columns with type mismatches"
+    → SELECT column_name, data_type, string_agg(file_name) FROM schema_info 
+      GROUP BY column_name, data_type HAVING column_name IN (...)
+
+"Show files with highest null percentages"
+    → SELECT file_name, AVG(null_count::float/total_rows) as null_pct 
+      FROM schema_info GROUP BY file_name ORDER BY null_pct DESC
+```
 ```
 
 ### Strategy Selection Examples

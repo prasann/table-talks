@@ -1,7 +1,7 @@
 """LLM Agent for natural language query processing."""
 
 import logging
-from typing import List
+from typing import List, Dict, Any
 import requests
 
 try:
@@ -21,11 +21,12 @@ except ImportError:
 class LLMAgent:
     """Agent for processing natural language queries about data schemas."""
     
-    def __init__(self, schema_tools: SchemaTools, model_name: str = "phi3", base_url: str = "http://localhost:11434"):
+    def __init__(self, schema_tools: SchemaTools, model_name: str = "phi3", base_url: str = "http://localhost:11434", strategy_type: str = None):
         """Initialize the LLM agent with strategy-based query processing."""
         self.schema_tools = schema_tools
         self.model_name = model_name
         self.base_url = base_url
+        self.strategy_type = strategy_type
         self.logger = get_logger("tabletalk.llm_agent")
         
         # Initialize strategy factory
@@ -33,7 +34,7 @@ class LLMAgent:
         
         # For structured output strategy, we might need LangChain LLM
         self.llm = None
-        if not self.strategy_factory._supports_function_calling(model_name):
+        if not self.strategy_factory._supports_function_calling(model_name) or strategy_type == "sql_agent":
             self._initialize_llm()
         
         # Create appropriate strategy
@@ -41,7 +42,8 @@ class LLMAgent:
             model_name=model_name,
             base_url=base_url,
             llm_agent=self if self.llm else None,
-            schema_tools=schema_tools
+            schema_tools=schema_tools,
+            strategy_type=strategy_type
         )
         
         # Log strategy selection
@@ -189,5 +191,44 @@ class LLMAgent:
             'llm_available': self.llm is not None,
             'model_name': self.model_name,
             'base_url': self.base_url,
-            'function_calling': strategy_info['type'] == 'function_calling'
+            'function_calling': strategy_info['type'] == 'function_calling',
+            'sql_agent': strategy_info['type'] == 'sql_agent',
+            'capabilities': strategy_info.get('capabilities', [])
         }
+    
+    def switch_strategy(self, strategy_type: str) -> bool:
+        """Switch to a different strategy.
+        
+        Args:
+            strategy_type: Type of strategy to switch to
+            
+        Returns:
+            True if switch was successful, False otherwise
+        """
+        try:
+            # Create new strategy
+            new_strategy = self.strategy_factory.create_strategy(
+                model_name=self.model_name,
+                base_url=self.base_url,
+                llm_agent=self if self.llm else None,
+                schema_tools=self.schema_tools,
+                strategy_type=strategy_type
+            )
+            
+            # Switch to new strategy
+            old_strategy_info = self.query_strategy.get_strategy_info()
+            self.query_strategy = new_strategy
+            self.strategy_type = strategy_type
+            
+            new_strategy_info = self.query_strategy.get_strategy_info()
+            self.logger.info(f"Switched from {old_strategy_info['name']} to {new_strategy_info['name']}")
+            
+            return True
+            
+        except Exception as e:
+            self.logger.error(f"Failed to switch strategy to {strategy_type}: {e}")
+            return False
+    
+    def get_available_strategies(self) -> Dict[str, Dict[str, Any]]:
+        """Get information about all available strategies."""
+        return self.strategy_factory.get_available_strategies()
