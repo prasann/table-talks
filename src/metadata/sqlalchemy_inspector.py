@@ -3,7 +3,7 @@
 from typing import Dict, List, Any
 from pathlib import Path
 
-from utils.logger import get_logger
+from src.utils.logger import get_logger
 from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -25,6 +25,95 @@ class SQLAlchemyInspector:
         except SQLAlchemyError as e:
             self.logger.error(f"Error getting table names: {e}")
             return []
+    
+    def get_tables(self) -> List[str]:
+        """Get all table names (alias for get_table_names for compatibility)."""
+        return self.get_table_names()
+    
+    def get_columns(self, table_name: str) -> List[Dict[str, Any]]:
+        """Get column information for a specific table."""
+        try:
+            columns = self.inspector.get_columns(table_name)
+            return [
+                {
+                    'name': col['name'], 
+                    'type': str(col['type']),
+                    'nullable': col.get('nullable', True),
+                    'default': col.get('default'),
+                    'autoincrement': col.get('autoincrement', False)
+                } 
+                for col in columns
+            ]
+        except SQLAlchemyError as e:
+            self.logger.error(f"Error getting columns for {table_name}: {e}")
+            return []
+    
+    def get_table_stats(self, table_name: str) -> Dict[str, Any]:
+        """Get basic statistics for a table."""
+        try:
+            with self.engine.connect() as conn:
+                result = conn.execute(text(f"SELECT COUNT(*) FROM {table_name}"))
+                row_count = result.scalar()
+                
+            columns = self.get_columns(table_name)
+            
+            return {
+                'row_count': row_count,
+                'column_count': len(columns)
+            }
+        except SQLAlchemyError as e:
+            self.logger.error(f"Error getting table stats for {table_name}: {e}")
+            return {'row_count': 0, 'column_count': 0}
+    
+    def get_indexes(self, table_name: str) -> List[Dict[str, Any]]:
+        """Get index information for a table."""
+        try:
+            indexes = self.inspector.get_indexes(table_name)
+            return [
+                {
+                    'name': idx.get('name', 'unnamed'),
+                    'column_names': idx.get('column_names', []),
+                    'unique': idx.get('unique', False)
+                } 
+                for idx in indexes
+            ]
+        except SQLAlchemyError as e:
+            self.logger.error(f"Error getting indexes for {table_name}: {e}")
+            return []
+    
+    def get_constraints(self, table_name: str) -> Dict[str, List[Dict[str, Any]]]:
+        """Get constraint information for a table."""
+        try:
+            # Get primary keys
+            pk_constraint = self.inspector.get_pk_constraint(table_name)
+            primary_keys = [pk_constraint] if pk_constraint.get('constrained_columns') else []
+            
+            # Get foreign keys
+            foreign_keys = self.inspector.get_foreign_keys(table_name)
+            
+            # Get unique constraints
+            unique_constraints = self.inspector.get_unique_constraints(table_name)
+            
+            # Get check constraints (if supported)
+            try:
+                check_constraints = self.inspector.get_check_constraints(table_name)
+            except (AttributeError, SQLAlchemyError):
+                check_constraints = []
+            
+            return {
+                'primary_keys': primary_keys,
+                'foreign_keys': foreign_keys,
+                'unique_constraints': unique_constraints,
+                'check_constraints': check_constraints
+            }
+        except SQLAlchemyError as e:
+            self.logger.error(f"Error getting constraints for {table_name}: {e}")
+            return {
+                'primary_keys': [],
+                'foreign_keys': [],
+                'unique_constraints': [],
+                'check_constraints': []
+            }
     
     def get_table_info(self, table_name: str) -> Dict[str, Any]:
         """Get comprehensive table information."""

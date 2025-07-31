@@ -4,7 +4,7 @@ import pandas as pd
 from pathlib import Path
 from typing import List, Dict, Any
 
-from utils.logger import get_logger
+from src.utils.logger import get_logger
 
 
 class SchemaExtractor:

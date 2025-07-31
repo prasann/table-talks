@@ -6,8 +6,8 @@ import requests
 from typing import Dict, List, Optional, Any
 from enum import Enum
 
-from utils.logger import get_logger
-from analysis.schema_analyzer import SchemaAnalyzer, create_schema_analyzer
+from src.utils.logger import get_logger
+from src.analysis.schema_analyzer import SchemaAnalyzer, create_schema_analyzer
 
 
 class ProcessingMode(Enum):
@@ -353,10 +353,62 @@ If no specific tool fits, respond with {{"tool": "list_files", "parameters": {{}
         try:
             message = response_data.get("message", {})
             tool_calls = message.get("tool_calls", [])
+            content = message.get("content", "")
+            
+            # Handle case where LLM returns JSON in content instead of proper tool_calls
+            if not tool_calls and content:
+                # Try to parse JSON from content
+                try:
+                    import json
+                    import re
+                    
+                    # Extract JSON from markdown code blocks if present
+                    json_match = re.search(r'```json\s*(\[.*?\])\s*```', content, re.DOTALL)
+                    if json_match:
+                        json_str = json_match.group(1)
+                    else:
+                        json_str = content.strip()
+                    
+                    # Parse the JSON
+                    parsed_json = json.loads(json_str)
+                    
+                    # Convert the parsed JSON to tool_calls format
+                    if isinstance(parsed_json, list) and len(parsed_json) > 0:
+                        synthetic_tool_calls = []
+                        for item in parsed_json:
+                            if isinstance(item, dict):
+                                # Handle different JSON formats
+                                function_name = None
+                                arguments = {}
+                                
+                                # Check for various formats
+                                if "functools invasiveMarker" in item:
+                                    function_name = item["functools invasiveMarker"]
+                                    arguments = item.get("arguments", {})
+                                elif "function" in item:
+                                    function_name = item["function"]
+                                    arguments = item.get("arguments", {})
+                                elif "tool" in item:
+                                    function_name = item["tool"]
+                                    arguments = item.get("parameters", {})
+                                
+                                if function_name:
+                                    synthetic_tool_calls.append({
+                                        "function": {
+                                            "name": function_name,
+                                            "arguments": arguments
+                                        }
+                                    })
+                        
+                        if synthetic_tool_calls:
+                            tool_calls = synthetic_tool_calls
+                            self.logger.info(f"Converted content JSON to {len(tool_calls)} function calls")
+                
+                except (json.JSONDecodeError, KeyError, AttributeError) as e:
+                    self.logger.warning(f"Failed to parse JSON from content: {e}")
             
             if not tool_calls:
                 # No function calls, return direct response
-                content = message.get("content", "No response generated")
                 self.logger.debug(f"LLM chose not to call any functions. Direct response: {content[:100]}...")
                 return content
             

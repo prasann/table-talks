@@ -3,8 +3,7 @@
 from typing import Dict, List, Any
 from pathlib import Path
 
-from utils.logger import get_logger
-import great_expectations as gx
+from src.utils.logger import get_logger
 import pandas as pd
 import duckdb
 
@@ -17,18 +16,20 @@ class ExpectationsAnalyzer:
         self.database_path = Path(database_path)
         self.logger = get_logger("tabletalk.expectations_analyzer")
         
-        # Initialize Great Expectations context
-        try:
-            self.context = gx.get_context()
-        except Exception as e:
-            self.logger.warning(f"GX context setup failed: {e}")
-            self.context = None
+        # Lazy initialize Great Expectations context
+        self.context = None
+        self._gx_available = None
     
-    def analyze_data_quality(self, tables: List[str] = None) -> Dict[str, Any]:
-        """Analyze data quality for specified tables."""
-        if not self.context:
-            return {'error': 'Great Expectations context not available'}
-        
+    def _init_gx_context(self):
+        """Initialize Great Expectations context lazily."""
+        # Temporarily disable GX due to dependency issues
+        self.logger.info("Great Expectations temporarily disabled")
+        self.context = None
+        self._gx_available = False
+        return self.context
+    
+    def _basic_quality_analysis(self, tables: List[str] = None) -> Dict[str, Any]:
+        """Basic quality analysis without Great Expectations."""
         try:
             # Connect to database
             conn = duckdb.connect(str(self.database_path))
@@ -50,7 +51,8 @@ class ExpectationsAnalyzer:
                         'row_count': len(df),
                         'column_count': len(df.columns),
                         'quality_score': quality_score,
-                        'issues': self._find_basic_issues(df)
+                        'issues': self._find_basic_issues(df),
+                        'mode': 'basic_analysis'
                     }
                 except Exception as e:
                     self.logger.warning(f"Failed to analyze {table_name}: {e}")
@@ -60,7 +62,48 @@ class ExpectationsAnalyzer:
             return {'tables': results, 'summary': self._create_summary(results)}
             
         except Exception as e:
-            self.logger.error(f"Data quality analysis failed: {e}")
+            self.logger.error(f"Basic quality analysis failed: {e}")
+            return {'error': str(e)}
+    
+    def analyze_data_quality(self, tables: List[str] = None) -> Dict[str, Any]:
+        """Analyze data quality for specified tables."""
+        # Skip GX for now, use basic analysis directly
+        self.logger.info("Using basic analysis mode (GX temporarily disabled)")
+        return self._basic_quality_analysis(tables)
+    
+    def analyze_table_quality(self, table_name: str) -> Dict[str, Any]:
+        """Analyze data quality for a single table.
+        
+        Args:
+            table_name: Name of the table to analyze
+            
+        Returns:
+            Quality analysis results for the table
+        """
+        try:
+            # Use the existing analyze_data_quality method with single table
+            results = self.analyze_data_quality([table_name])
+            
+            if 'error' in results:
+                return {'error': results['error']}
+            
+            # Extract results for the specific table
+            table_results = results.get('tables', {})
+            if table_name in table_results:
+                result = table_results[table_name]
+                # Ensure the result has the expected format
+                return {
+                    'name': table_name,
+                    'row_count': result.get('row_count', 0),
+                    'column_count': result.get('column_count', 0),
+                    'quality_score': result.get('quality_score', 0),
+                    'issues': result.get('issues', [])
+                }
+            else:
+                return {'error': f'Table {table_name} not found in analysis results'}
+                
+        except Exception as e:
+            self.logger.error(f"Failed to analyze table quality for {table_name}: {e}")
             return {'error': str(e)}
     
     def _calculate_quality_score(self, df: pd.DataFrame) -> float:

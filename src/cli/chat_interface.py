@@ -2,9 +2,9 @@
 
 from pathlib import Path
 
-from metadata.metadata_store import MetadataStore
-from metadata.schema_extractor import SchemaExtractor
-from agent.schema_agent import SchemaAgent
+from src.metadata.metadata_store import MetadataStore
+from src.metadata.schema_extractor import SchemaExtractor
+from src.agent.schema_agent import SchemaAgent
 
 
 class ChatInterface:
