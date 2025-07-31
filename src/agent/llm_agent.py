@@ -34,7 +34,7 @@ class LLMAgent:
         
         # For structured output strategy, we might need LangChain LLM
         self.llm = None
-        if not self.strategy_factory._supports_function_calling(model_name) or strategy_type in ["sql_agent", "sql_agent_langgraph", "sql_agent_simple"]:
+        if not self.strategy_factory._supports_function_calling(model_name) or strategy_type == "structured_output":
             self._initialize_llm()
         
         # Create appropriate strategy
@@ -192,7 +192,6 @@ class LLMAgent:
             'model_name': self.model_name,
             'base_url': self.base_url,
             'function_calling': strategy_info['type'] == 'function_calling',
-            'sql_agent': strategy_info['type'] == 'sql_agent',
             'capabilities': strategy_info.get('capabilities', [])
         }
     

@@ -12,9 +12,9 @@ import time
 from pathlib import Path
 
 # Add src to path for imports
-sys.path.insert(0, str(Path(__file__).parent / "src"))
+sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from src.main import run_tabletalk_commands
+from main import run_tabletalk_commands
 
 # Test queries to validate LLM functionality
 TEST_QUERIES = [
@@ -73,7 +73,7 @@ def test_file_scanning():
     """Test file scanning functionality."""
     print("\n📁 Testing File Scanning...")
     
-    data_dir = Path(__file__).parent / "data" / "sample"
+    data_dir = Path(__file__).parent.parent / "data" / "sample"
     
     commands = [f"/scan {data_dir}", "/status"]
     
@@ -97,7 +97,7 @@ def test_natural_language_queries():
     print("\n🤖 Testing Natural Language Queries...")
     print(f"📝 Running {len(TEST_QUERIES)} test queries")
     
-    data_dir = Path(__file__).parent / "data" / "sample"
+    data_dir = Path(__file__).parent.parent / "data" / "sample"
     successful = 0
     failed = 0
     
@@ -157,7 +157,7 @@ def main():
     print("=" * 50)
     
     # Check sample data exists
-    data_dir = Path(__file__).parent / "data" / "sample"
+    data_dir = Path(__file__).parent.parent / "data" / "sample"
     if not data_dir.exists():
         print(f"❌ Sample data directory not found: {data_dir}")
         return

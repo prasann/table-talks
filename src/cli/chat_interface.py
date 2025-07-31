@@ -36,9 +36,7 @@ class ChatInterface:
             
             # Get status to display the right message
             status = self.agent.get_status()
-            if status.get('sql_agent'):
-                print("🚀 SQL Agent mode: Natural language to SQL conversion enabled!")
-            elif status.get('function_calling'):
+            if status.get('function_calling'):
                 print("🚀 Advanced mode: Native function calling enabled!")
             elif status.get('llm_available'):
                 print("🤖 Intelligent mode: LLM query parsing enabled!")
@@ -150,7 +148,6 @@ class ChatInterface:
             print(f"   Strategy: {status.get('strategy_name', 'Unknown')} ({status.get('strategy_type', 'Unknown')})")
             print(f"   LLM Available: {'✅' if status['llm_available'] else '❌'}")
             print(f"   Function Calling: {'✅' if status.get('function_calling') else '❌'}")
-            print(f"   SQL Agent: {'✅' if status.get('sql_agent') else '❌'}")
             if status['llm_available']:
                 print(f"   Model: {status['model_name']}")
                 print(f"   URL: {status['base_url']}")
@@ -191,10 +188,7 @@ class ChatInterface:
             print(f"✅ Switched to {status['strategy_name']}")
             
             # Show helpful info about the new strategy
-            if strategy_type == "sql_agent":
-                print("🚀 SQL Agent mode: You can now ask complex analytical questions!")
-                print("Example: 'Which files have more than 5 columns and over 1000 rows?'")
-            elif strategy_type == "function_calling":
+            if strategy_type == "function_calling":
                 print("🔧 Function Calling mode: Precise tool selection enabled!")
             elif strategy_type == "structured_output":
                 print("📝 Structured Output mode: LLM-guided query parsing enabled!")
@@ -208,7 +202,7 @@ TableTalk Commands:
   /scan <directory>  - Scan files for schema information
   /status            - Show system status
   /strategy          - Show available strategies
-  /strategy <type>   - Switch to a different strategy (sql_agent, function_calling, structured_output)
+  /strategy <type>   - Switch to a different strategy (function_calling, structured_output)
   /help              - Show this help
   /exit              - Exit TableTalk
 
@@ -219,9 +213,4 @@ Query Examples:
   "What columns are in orders?"
   "How many rows are in each file?"
   "Show me tables with email addresses"
-  
-SQL Agent Examples (when using sql_agent strategy):
-  "Which files have more than 10 columns?"
-  "Find files where the same column has different data types"
-  "Show me files with the highest null value percentages"
         """.strip())

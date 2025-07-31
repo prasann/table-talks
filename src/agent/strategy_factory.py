@@ -8,9 +8,6 @@ try:
     from .query_strategy import QueryProcessingStrategy
     from .function_calling_strategy import FunctionCallingStrategy
     from .structured_output_strategy import StructuredOutputStrategy
-    from .sql_agent_strategy import SQLAgentStrategy
-    from .sql_agent_langgraph import SQLAgentLangGraph
-    from .sql_agent_simple import SQLAgentSimple
 except ImportError:
     # Fallback for direct execution
     import sys
@@ -20,9 +17,6 @@ except ImportError:
     from agent.query_strategy import QueryProcessingStrategy
     from agent.function_calling_strategy import FunctionCallingStrategy
     from agent.structured_output_strategy import StructuredOutputStrategy
-    from agent.sql_agent_strategy import SQLAgentStrategy
-    from agent.sql_agent_langgraph import SQLAgentLangGraph
-    from agent.sql_agent_simple import SQLAgentSimple
 
 
 class QueryStrategyFactory:
@@ -45,7 +39,7 @@ class QueryStrategyFactory:
             base_url: Base URL for Ollama API
             llm_agent: LLM agent instance (for structured output strategy)
             schema_tools: Schema tools instance (for function calling strategy)
-            strategy_type: Explicit strategy type ("function_calling", "structured_output", "sql_agent")
+            strategy_type: Explicit strategy type ("function_calling", "structured_output")
             
         Returns:
             Appropriate QueryProcessingStrategy instance
@@ -53,21 +47,14 @@ class QueryStrategyFactory:
         
         # If explicit strategy type is specified, use it
         if strategy_type:
-            if strategy_type == "sql_agent":
-                self.logger.info(f"Creating SQLAgentStrategy for model: {model_name}")
-                return SQLAgentStrategy(llm_agent=llm_agent)
-            elif strategy_type == "sql_agent_langgraph":
-                self.logger.info(f"Creating SQLAgentLangGraph for model: {model_name}")
-                return SQLAgentLangGraph(llm_agent=llm_agent)
-            elif strategy_type == "sql_agent_simple":
-                self.logger.info(f"Creating SQLAgentSimple for model: {model_name}")
-                return SQLAgentSimple(llm_agent=llm_agent)
-            elif strategy_type == "function_calling":
+            if strategy_type == "function_calling":
                 self.logger.info(f"Creating FunctionCallingStrategy for model: {model_name}")
                 return FunctionCallingStrategy(base_url=base_url, model=model_name, schema_tools=schema_tools)
             elif strategy_type == "structured_output":
                 self.logger.info(f"Creating StructuredOutputStrategy for model: {model_name}")
                 return StructuredOutputStrategy(llm_agent=llm_agent)
+            else:
+                self.logger.warning(f"Unknown strategy type '{strategy_type}', falling back to auto-detection")
         
         # Auto-determine strategy based on model capabilities
         if self._supports_function_calling(model_name):
@@ -125,33 +112,6 @@ class QueryStrategyFactory:
                 "capabilities": ["structured_prompting", "json_parsing", "pattern_fallback"],
                 "performance": "good",
                 "recommended": False
-            },
-            "sql_agent": {
-                "name": "SQL Agent Strategy",
-                "description": "Direct SQL execution with simple retry logic",
-                "supported_models": ["phi3", "phi4", "llama2", "mistral", "gpt-4", "claude"],
-                "capabilities": ["natural_language_to_sql", "direct_execution", "basic_retry"],
-                "performance": "good",
-                "recommended": False,
-                "use_case": "Simple SQL generation and execution"
-            },
-            "sql_agent_simple": {
-                "name": "Simple SQL Agent Strategy",
-                "description": "Lightweight SQL agent with rule-based generation and concise formatting",
-                "supported_models": ["phi3", "phi4", "llama2", "mistral", "gpt-4", "claude"],
-                "capabilities": ["rule_based_sql", "optional_llm_fallback", "concise_formatting", "fast_execution"],
-                "performance": "fast",
-                "recommended": True,
-                "use_case": "Quick data queries with minimal overhead"
-            },
-            "sql_agent_langgraph": {
-                "name": "LangGraph SQL Agent Strategy",
-                "description": "Advanced LangGraph agent with multi-step reasoning and intelligent formatting",
-                "supported_models": ["phi3", "phi4", "llama2", "mistral", "gpt-4", "claude"],
-                "capabilities": ["advanced_sql_generation", "multi_step_reasoning", "intelligent_formatting", "error_recovery"],
-                "performance": "excellent",
-                "recommended": False,
-                "use_case": "Complex data analysis with detailed explanations"
             }
         }
     
