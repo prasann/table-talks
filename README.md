@@ -1,14 +1,6 @@
-# 📊 TableTalk
+# � TableTalk
 
-Chat with your CSV and Parquet files using natural language! TableTalk is a local-first data schema explorer powered by Phi-3 for intelligent query understanding.
-
-## ✨ Features
-
-- **🗣️ Natural Language**: Ask questions in plain English about your data
-- **🤖 Smart Analysis**: AI-powered query understanding and tool selection
-- **🔒 Privacy-First**: All processing happens locally on your machine
-- **⚡ Fast & Simple**: Quick responses with intelligent fallback
-- **📁 Multi-Format**: Supports CSV and Parquet files
+**TableTalk** is a local-first data schema explorer that lets you chat with your CSV and Parquet files using natural language, powered by Phi-3 for intelligent query understanding.
 
 ## 🚀 Quick Start
 
@@ -18,14 +10,27 @@ python -m venv tabletalk-env
 source tabletalk-env/bin/activate  # macOS/Linux
 pip install -r requirements.txt
 
-# 2. Install Ollama and pull model
+# 2. Install Ollama and setup function calling
 curl -fsSL https://ollama.ai/install.sh | sh
 ollama serve
+
+# For basic functionality (any model works)
 ollama pull phi3:mini
+
+# For advanced function calling (recommended)
+./scripts/setup_phi4_function_calling.sh
 
 # 3. Start TableTalk
 python src/main.py
 ```
+
+## ✨ Features
+
+- **🗣️ Natural Language**: Ask questions in plain English about your data
+- **🤖 Smart Analysis**: AI-powered query understanding and tool selection
+- **🔒 Privacy-First**: All processing happens locally on your machine
+- **⚡ Fast & Simple**: Quick responses with intelligent fallback
+- **📁 Multi-Format**: Supports CSV and Parquet files
 
 ## 💬 Example Usage
 
@@ -52,46 +57,46 @@ python src/main.py
 • email (object) - 1000 unique values
 ```
 
-## 🎯 What You Can Ask
+## 📖 User Documentation
 
-- **"What files do we have?"** - File discovery
-- **"Show me the customer schema"** - Detailed column analysis
-- **"Find data quality issues"** - Comprehensive analysis
-- **"Are there type mismatches?"** - Specific validation
-- **"Which files have customer_id?"** - Cross-file search
+- **[Usage Guide](docs/USAGE.md)** - Detailed usage instructions and examples
+- **[Troubleshooting](docs/TROUBLESHOOTING.md)** - Common issues and solutions
 
-## 🛠️ Commands
+## 🏗️ Technical Documentation
 
-- `scan` - Analyze all files in data/ folder
-- `status` - Show system status
-- `help` - Available commands
-- `quit` - Exit application
+- **[Architecture Overview](docs/vibe-collab/design_document.md)** - Current technical design and implementation details
+- **[Development Plan](docs/vibe-collab/concept_and_plan.md)** - Project concept, vision, and implementation roadmap
+- **[Technical Documentation Guide](docs/vibe-collab/README.md)** - Overview of technical docs structure
 
-## 🏗️ Architecture
+## 📝 Development Notes
 
-**Pure LLM Design** - Clean 3-component architecture:
-- **LLM Agent**: Query orchestration and response formatting
-- **Context Manager**: Intelligent query parsing and tool selection
-- **Schema Tools**: 8 specialized analysis functions
+- **[Todo List](docs/todo.txt)** - Development tasks and ideas
 
-## 📋 Requirements
+## 🗂️ Project Structure
 
-- Python 3.9+
-- Ollama with phi3:mini model
-- ~2GB RAM for model
-- CSV/Parquet files in `data/` folder
+```
+table-talk/
+├── README.md                    # This file - main project documentation
+├── src/                         # Source code
+├── docs/                        # Documentation
+│   ├── USAGE.md                 # User guide and examples
+│   ├── TROUBLESHOOTING.md       # Common issues and solutions
+│   ├── todo.txt                 # Development notes
+│   └── vibe-collab/             # Technical architecture docs
+│       ├── README.md            # Technical docs overview
+│       ├── concept_and_plan.md  # Project concept and roadmap
+│       └── design_document.md   # Current architecture details
+├── scripts/                     # Setup and utility scripts
+├── tests/                       # Test files
+├── data/                        # Data files directory
+└── config/                      # Configuration files
+```
 
-## 🔧 Technical Details
+## 🔗 Quick Links
 
-- **Database**: DuckDB for fast metadata storage
-- **LLM**: Phi-3 mini via Ollama for local inference
-- **Files**: Supports CSV and Parquet up to 100MB
-- **Response Time**: 1-3 seconds typical
+- **Getting Started**: Quick start instructions below
+- **Scripts**: Setup and utility scripts in [scripts/](scripts/)
+- **Tests**: Test files in [tests/](tests/)
+- **Source Code**: Implementation in [src/](src/)
 
 ---
-
-**Ready to explore your data?** Put your files in the `data/` folder and start asking questions! 🚀
-- Python 3.11+
-- Ollama + Phi-3 (optional, falls back to basic mode)
-- DuckDB (metadata storage)
-- LangChain (LLM integration)

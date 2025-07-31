@@ -1,0 +1,2 @@
+- Revisit the schema_tools. Can we have more granular tools to do the job? Can we simplify further?
+- Review and potentially optimize query processing strategies for better performance

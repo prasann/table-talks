@@ -11,17 +11,14 @@ from pathlib import Path
 warnings.filterwarnings("ignore", category=DeprecationWarning, module="langchain")
 warnings.filterwarnings("ignore", message=".*deprecated.*", category=DeprecationWarning)
 
-# Add src directory to Python path
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+# Ensure src is in Python path for consistent imports
+src_dir = os.path.dirname(os.path.abspath(__file__))
+if src_dir not in sys.path:
+    sys.path.insert(0, src_dir)
 
-# Handle both direct execution and module execution
-try:
-    from .cli.chat_interface import ChatInterface
-    from .utils.logger import setup_logger
-except ImportError:
-    # Fallback for direct execution
-    from cli.chat_interface import ChatInterface
-    from utils.logger import setup_logger
+# Always use absolute imports from src
+from cli.chat_interface import ChatInterface
+from utils.logger import setup_logger
 
 
 def load_config() -> dict:
@@ -41,7 +38,7 @@ def load_config() -> dict:
         return {
             'database': {'path': './database/metadata.duckdb'},
             'llm': {
-                'model': 'phi3:mini',
+                'model': 'phi3:mini',  # Works well for structured output
                 'base_url': 'http://localhost:11434',
                 'temperature': 0.1,
                 'max_tokens': 1000
@@ -56,7 +53,7 @@ def load_config() -> dict:
 
 
 def check_ollama_connection(base_url: str) -> bool:
-    """Check if Ollama is running and accessible.
+    """Check if Ollama is running and accessible with Phi-4 model.
     
     Args:
         base_url: Ollama server URL
@@ -67,7 +64,29 @@ def check_ollama_connection(base_url: str) -> bool:
     try:
         import requests
         response = requests.get(f"{base_url}/api/tags", timeout=5)
-        return response.status_code == 200
+        
+        # Check if connection is successful
+        if response.status_code != 200:
+            return False
+            
+        # Check if Phi model is available
+        models = response.json().get("models", [])
+        model_names = [m.get("name", "") for m in models]
+        
+        phi_available = any("phi" in name.lower() for name in model_names)
+        phi4_fc_available = any("phi4-mini-fc" in name.lower() for name in model_names)
+        
+        if phi4_fc_available:
+            print("✅ Phi-4 function calling model found!")
+        elif phi_available:
+            print("⚠️  Phi model found but no function calling support.")
+            print("   Run ./scripts/setup_phi4_function_calling.sh for better performance")
+        else:
+            print("⚠️  Warning: No Phi model found. Basic mode only.")
+            print("   Consider running: ollama pull phi3:mini")
+        print()
+            
+        return True
     except Exception:
         return False
 

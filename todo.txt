@@ -1,2 +1,0 @@
-- The context manager logic is too complex. Need to revisit that json parsing. may be use some niche tools.
-- Revisit the tools. can we have more granular tools to do the job. can we simplify that further?

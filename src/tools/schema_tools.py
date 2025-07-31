@@ -4,17 +4,17 @@ from typing import List, Dict, Any, Optional
 from langchain.tools import Tool
 from pydantic import BaseModel, Field
 import logging
+import os
+import sys
 
-try:
-    from ..utils.logger import get_logger
-    from ..metadata.metadata_store import MetadataStore
-except ImportError:
-    # Fallback for direct execution
-    import sys
-    import os
-    sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    from utils.logger import get_logger
-    from metadata.metadata_store import MetadataStore
+# Ensure src is in Python path for consistent imports
+src_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if src_dir not in sys.path:
+    sys.path.insert(0, src_dir)
+
+# Always use absolute imports from src
+from utils.logger import get_logger
+from metadata.metadata_store import MetadataStore
 
 
 class SchemaTools:
@@ -33,31 +33,55 @@ class SchemaTools:
         """Get schema information for a specific file.
         
         Args:
-            file_name: Name of the file
+            file_name: Name of the file (can be partial)
             
         Returns:
             Formatted string with schema information
         """
         try:
-            schema = self.store.get_file_schema(file_name)
+            # Get all available files
+            files = self.store.list_all_files()
+            
+            if not files:
+                return "No files have been scanned yet. Use /scan <directory> to scan files."
+            
+            # Find matching files (case-insensitive)
+            file_name_lower = file_name.lower()
+            matching_files = [f for f in files if file_name_lower in f['file_name'].lower()]
+            
+            if not matching_files:
+                available_files = [f['file_name'] for f in files]
+                return f"No files match '{file_name}'. Available files: {', '.join(available_files)}"
+            
+            if len(matching_files) > 1:
+                matches = [f['file_name'] for f in matching_files]
+                return f"Multiple files match '{file_name}': {', '.join(matches)}. Please be more specific."
+            
+            # Single match found
+            actual_file_name = matching_files[0]['file_name']
+            schema = self.store.get_file_schema(actual_file_name)
             
             if not schema:
-                return f"No schema found for: {file_name}"
+                return f"Schema data not found for: {actual_file_name}"
             
-            total_rows = schema[0]['total_rows']
-            result = [f"{file_name}: {total_rows} rows, {len(schema)} columns"]
-            
-            for col in schema:
-                null_pct = (col['null_count'] / col['total_rows']) * 100 if col['total_rows'] > 0 else 0
-                null_info = f", {col['null_count']} nulls" if col['null_count'] > 0 else ""
-                
-                result.append(f"  {col['column_name']} ({col['data_type']}): {col['unique_count']} unique{null_info}")
-            
-            return "\n".join(result)
+            return self._format_schema(schema, actual_file_name)
             
         except Exception as e:
             self.logger.error(f"Error getting schema for {file_name}: {str(e)}")
             return f"Error retrieving schema for {file_name}: {str(e)}"
+    
+    def _format_schema(self, schema: list, file_name: str) -> str:
+        """Format schema information for display."""
+        total_rows = schema[0]['total_rows']
+        result = [f"{file_name}: {total_rows} rows, {len(schema)} columns"]
+        
+        for col in schema:
+            null_pct = (col['null_count'] / col['total_rows']) * 100 if col['total_rows'] > 0 else 0
+            null_info = f", {col['null_count']} nulls" if col['null_count'] > 0 else ""
+            
+            result.append(f"  {col['column_name']} ({col['data_type']}): {col['unique_count']} unique{null_info}")
+        
+        return "\n".join(result)
     
     def list_all_files(self, *args, **kwargs) -> str:
         """List all scanned files with basic information.
