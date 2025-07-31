@@ -22,7 +22,6 @@ class ProcessingMode(Enum):
     """Processing modes for SchemaAgent."""
     FUNCTION_CALLING = "function_calling"
     STRUCTURED_OUTPUT = "structured_output"
-    PATTERN_MATCHING = "pattern_matching"
 
 
 class SchemaAgent:
@@ -51,7 +50,7 @@ class SchemaAgent:
         elif self.structured_llm:
             self.mode = ProcessingMode.STRUCTURED_OUTPUT
         else:
-            self.mode = ProcessingMode.PATTERN_MATCHING
+            raise RuntimeError("No compatible model found. Please ensure you have phi4-mini-fc or a compatible model.")
             
         self.logger.info(f"SchemaAgent initialized with {self.mode.value} mode for model: {model_name}")
     
@@ -99,10 +98,8 @@ class SchemaAgent:
         try:
             if self.mode == ProcessingMode.FUNCTION_CALLING:
                 result = self._process_with_function_calling(user_query)
-            elif self.mode == ProcessingMode.STRUCTURED_OUTPUT:
+            else:  # ProcessingMode.STRUCTURED_OUTPUT
                 result = self._process_with_structured_output(user_query)
-            else:  # ProcessingMode.PATTERN_MATCHING
-                result = self._process_with_patterns(user_query)
             
             self.logger.debug(f"Query result length: {len(result)} characters")
             return result
@@ -155,13 +152,11 @@ class SchemaAgent:
                 return self._execute_function_calls(response_data, query)
             else:
                 self.logger.error(f"Function calling API error: {response.status_code} - {response.text}")
-                self.logger.debug("Falling back to pattern matching")
-                return self._process_with_patterns(query)  # Fallback
+                return f"I'm having trouble connecting to the language model. Please try again."
                 
         except Exception as e:
             self.logger.error(f"Function calling failed: {e}")
-            self.logger.debug("Falling back to pattern matching")
-            return self._process_with_patterns(query)  # Fallback
+            return f"I'm having trouble with function calling. Please try rephrasing your question."
     
     def _process_with_structured_output(self, query: str) -> str:
         """Process query using LangChain structured output."""
@@ -175,12 +170,13 @@ Query: {query}
 Available tools:
 - get_file_schema: Get detailed schema for a specific file (requires file_name)
 - list_files: List all available files
-- find_columns: Find files containing a specific column (requires column_name)  
+- search_columns: Search for columns containing a term (requires search_term)
+- get_column_data_types: Get data types for a column across files (requires column_name)
+- get_database_summary: Get overall database statistics
 - detect_type_mismatches: Find columns with inconsistent types across files
 - find_common_columns: Find columns that appear in multiple files
-- database_summary: Get overall database statistics
-- detect_semantic_type_issues: Find semantic type inconsistencies
-- detect_column_name_variations: Find similar column names with different conventions
+- compare_two_files: Compare schemas between two files (requires file1, file2)
+- analyze_data_quality: Comprehensive data quality analysis report
 
 Response format:
 {{
@@ -214,166 +210,15 @@ If no specific tool fits, respond with {{"tool": "list_files", "parameters": {{}
                 
             except json.JSONDecodeError as e:
                 self.logger.warning(f"JSON parsing failed: {e}, LLM response: {content[:100]}...")
-                self.logger.debug("Falling back to pattern matching")
-                return self._process_with_patterns(query)
+                return f"I'm having trouble parsing the model response. Please try rephrasing your question."
                 
         except Exception as e:
             self.logger.warning(f"Structured output failed: {e}")
-            self.logger.debug("Falling back to pattern matching")
-            return self._process_with_patterns(query)
-    
-    def _process_with_patterns(self, query: str) -> str:
-        """Process query using simple pattern matching (fallback)."""
-        self.logger.debug(f"Using pattern matching for query: {query}")
-        query_lower = query.lower()
-        
-        try:
-            if any(word in query_lower for word in ["files", "tables", "datasets", "what do we have"]):
-                self.logger.debug("Pattern matched: list files")
-                return self.schema_tools.list_all_files()
-            
-            elif "schema" in query_lower:
-                self.logger.debug("Pattern matched: get schema")
-                # Try to extract filename
-                words = query.split()
-                for word in words:
-                    if ".csv" in word.lower() or ".parquet" in word.lower():
-                        self.logger.debug(f"Extracted filename: {word}")
-                        return self.schema_tools.get_file_schema(word)
-                return "Please specify a filename, e.g., 'schema of customers.csv'"
-            
-            elif any(word in query_lower for word in ["columns", "column"]):
-                self.logger.debug("Pattern matched: find columns")
-                # Try to extract column name
-                words = query.split()
-                for word in words:
-                    if len(word) > 2 and word not in ["columns", "column", "have", "with", "find"]:
-                        self.logger.debug(f"Extracted column name: {word}")
-                        return self.schema_tools.find_columns_with_name(word)
-                return "Please specify a column name to search for"
-            
-            elif any(word in query_lower for word in ["type", "mismatch", "inconsistent"]):
-                self.logger.debug("Pattern matched: detect type mismatches")
-                return self.schema_tools.detect_type_mismatches()
-            
-            elif any(word in query_lower for word in ["common", "shared", "across"]):
-                self.logger.debug("Pattern matched: find common columns")
-                return self.schema_tools.find_common_columns()
-            
-            elif any(word in query_lower for word in ["summary", "overview", "statistics"]):
-                self.logger.debug("Pattern matched: database summary")
-                return self.schema_tools.get_database_summary()
-            
-            elif any(word in query_lower for word in ["quality", "issues", "problems"]):
-                self.logger.debug("Pattern matched: data quality analysis")
-                result = []
-                result.append("🔍 Data Quality Analysis:")
-                result.append(self.schema_tools.detect_type_mismatches())
-                result.append(self.schema_tools.detect_semantic_type_issues())
-                result.append(self.schema_tools.detect_column_name_variations())
-                return "\n\n".join(result)
-            
-            else:
-                self.logger.debug("No pattern matched, returning help")
-                return (
-                    "I can help you explore your data schemas. Try asking:\n"
-                    "• 'What files do we have?'\n"
-                    "• 'Show me the schema of customers.csv'\n"
-                    "• 'Find columns with customer_id'\n"
-                    "• 'Detect type mismatches'\n"
-                    "• 'Find data quality issues'"
-                )
-                
-        except Exception as e:
-            self.logger.error(f"Pattern matching failed: {e}")
-            return f"Error processing query: {e}"
+            return f"I'm having trouble with structured output. Please try rephrasing your question."
     
     def _get_function_calling_tools(self) -> List[Dict]:
-        """Get tool definitions for function calling."""
-        return [
-            {
-                "type": "function",
-                "function": {
-                    "name": "get_file_schema",
-                    "description": "Get detailed schema information for a specific file",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "file_name": {
-                                "type": "string",
-                                "description": "Name of the file to analyze (e.g., 'customers.csv')"
-                            }
-                        },
-                        "required": ["file_name"]
-                    }
-                }
-            },
-            {
-                "type": "function", 
-                "function": {
-                    "name": "list_files",
-                    "description": "List all available files in the database - use this when user asks 'what files do we have' or wants to see available files",
-                    "parameters": {"type": "object", "properties": {}}
-                }
-            },
-            {
-                "type": "function",
-                "function": {
-                    "name": "find_columns",
-                    "description": "Find files that contain a specific column name",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "column_name": {
-                                "type": "string", 
-                                "description": "Name of the column to search for"
-                            }
-                        },
-                        "required": ["column_name"]
-                    }
-                }
-            },
-            {
-                "type": "function",
-                "function": {
-                    "name": "detect_type_mismatches", 
-                    "description": "Find data type discrepancies and inconsistencies across tables - use this for detecting type mismatches, discrepancies, or inconsistent data types between files",
-                    "parameters": {"type": "object", "properties": {}}
-                }
-            },
-            {
-                "type": "function",
-                "function": {
-                    "name": "find_common_columns",
-                    "description": "Find columns that appear in multiple files", 
-                    "parameters": {"type": "object", "properties": {}}
-                }
-            },
-            {
-                "type": "function",
-                "function": {
-                    "name": "database_summary",
-                    "description": "Get overall statistics about the database",
-                    "parameters": {"type": "object", "properties": {}}
-                }
-            },
-            {
-                "type": "function",
-                "function": {
-                    "name": "detect_semantic_type_issues",
-                    "description": "Find semantic type problems like numeric data stored as text, dates as strings, etc. - use for data quality analysis",
-                    "parameters": {"type": "object", "properties": {}}
-                }
-            },
-            {
-                "type": "function", 
-                "function": {
-                    "name": "detect_column_name_variations",
-                    "description": "Find similar column names with different naming conventions",
-                    "parameters": {"type": "object", "properties": {}}
-                }
-            }
-        ]
+        """Get tool definitions for function calling from the unified schema tools."""
+        return self.schema_tools.get_function_calling_tools()
     
     def _execute_function_calls(self, response_data: dict, original_query: str) -> str:
         """Execute function calls and return formatted results."""
@@ -384,11 +229,19 @@ If no specific tool fits, respond with {{"tool": "list_files", "parameters": {{}
             if not tool_calls:
                 # No function calls, return direct response
                 content = message.get("content", "No response generated")
-                self.logger.debug(f"No function calls made, returning direct response: {content[:100]}...")
+                self.logger.debug(f"LLM chose not to call any functions. Direct response: {content[:100]}...")
                 return content
+            
+            self.logger.info(f"LLM decided to call {len(tool_calls)} functions:")
+            for i, tool_call in enumerate(tool_calls):
+                function = tool_call.get("function", {})
+                function_name = function.get("name")
+                arguments = function.get("arguments", {})
+                self.logger.info(f"  Function {i+1}: {function_name}({arguments})")
             
             self.logger.debug(f"Executing {len(tool_calls)} function calls")
             results = []
+            
             for i, tool_call in enumerate(tool_calls):
                 function = tool_call.get("function", {})
                 function_name = function.get("name")
@@ -396,28 +249,39 @@ If no specific tool fits, respond with {{"tool": "list_files", "parameters": {{}
                 
                 self.logger.debug(f"Function call {i+1}: {function_name} with args: {arguments}")
                 
-                # Execute the function
-                if function_name == "get_file_schema":
-                    result = self.schema_tools.get_file_schema(arguments.get("file_name", ""))
-                elif function_name == "list_files":
-                    result = self.schema_tools.list_all_files()
-                elif function_name == "find_columns":
-                    result = self.schema_tools.find_columns_with_name(arguments.get("column_name", ""))
-                elif function_name == "detect_type_mismatches":
-                    result = self.schema_tools.detect_type_mismatches()
-                elif function_name == "find_common_columns":
-                    result = self.schema_tools.find_common_columns()
-                elif function_name == "database_summary":
-                    result = self.schema_tools.get_database_summary()
-                elif function_name == "detect_semantic_type_issues":
-                    result = self.schema_tools.detect_semantic_type_issues()
-                elif function_name == "detect_column_name_variations":
-                    result = self.schema_tools.detect_column_name_variations()
-                else:
-                    result = f"Unknown function: {function_name}"
+                try:
+                    # Execute the function using the actual tool methods
+                    if function_name == "get_file_schema":
+                        result = self.schema_tools.atomic.get_file_schema(arguments.get("file_name", ""))
+                    elif function_name == "list_files":
+                        result = self.schema_tools.atomic.list_files()
+                    elif function_name == "search_columns":
+                        result = self.schema_tools.atomic.search_columns(arguments.get("search_term", ""))
+                    elif function_name == "get_column_data_types":
+                        result = self.schema_tools.atomic.get_column_data_types(arguments.get("column_name", ""))
+                    elif function_name == "get_database_summary":
+                        result = self.schema_tools.atomic.get_database_summary()
+                    elif function_name == "detect_type_mismatches":
+                        result = self.schema_tools.composite.detect_type_mismatches()
+                    elif function_name == "find_common_columns":
+                        result = self.schema_tools.composite.find_common_columns()
+                    elif function_name == "compare_two_files":
+                        result = self.schema_tools.composite.compare_two_files(
+                            arguments.get("file1", ""), arguments.get("file2", "")
+                        )
+                    elif function_name == "analyze_data_quality":
+                        result = self.schema_tools.composite.analyze_data_quality()
+                    else:
+                        result = f"Unknown function: {function_name}"
+                        self.logger.error(f"Unknown function called: {function_name}")
                 
-                self.logger.debug(f"Function {function_name} result length: {len(result)} characters")
-                results.append(result)
+                    self.logger.debug(f"Function {function_name} result length: {len(result)} characters")
+                    results.append(result)
+                    
+                except Exception as e:
+                    error_msg = f"Function execution failed: {str(e)}"
+                    self.logger.error(f"Function execution failed: {str(e)}")
+                    results.append(error_msg)
             
             combined_result = "\n\n".join(results)
             self.logger.debug(f"Combined function call results length: {len(combined_result)} characters")
@@ -437,21 +301,25 @@ If no specific tool fits, respond with {{"tool": "list_files", "parameters": {{}
             self.logger.debug(f"Executing structured plan - Tool: {tool_name}, Params: {parameters}, Explanation: {explanation}")
             
             if tool_name == "get_file_schema":
-                result = self.schema_tools.get_file_schema(parameters.get("file_name", ""))
+                result = self.schema_tools.atomic.get_file_schema(parameters.get("file_name", ""))
             elif tool_name == "list_files":
-                result = self.schema_tools.list_all_files()
-            elif tool_name == "find_columns":
-                result = self.schema_tools.find_columns_with_name(parameters.get("column_name", ""))
+                result = self.schema_tools.atomic.list_files()
+            elif tool_name == "search_columns":
+                result = self.schema_tools.atomic.search_columns(parameters.get("search_term", ""))
+            elif tool_name == "get_column_data_types":
+                result = self.schema_tools.atomic.get_column_data_types(parameters.get("column_name", ""))
+            elif tool_name == "get_database_summary":
+                result = self.schema_tools.atomic.get_database_summary()
             elif tool_name == "detect_type_mismatches":
-                result = self.schema_tools.detect_type_mismatches()
+                result = self.schema_tools.composite.detect_type_mismatches()
             elif tool_name == "find_common_columns":
-                result = self.schema_tools.find_common_columns()
-            elif tool_name == "database_summary":
-                result = self.schema_tools.get_database_summary()
-            elif tool_name == "detect_semantic_type_issues":
-                result = self.schema_tools.detect_semantic_type_issues()
-            elif tool_name == "detect_column_name_variations":
-                result = self.schema_tools.detect_column_name_variations()
+                result = self.schema_tools.composite.find_common_columns()
+            elif tool_name == "compare_two_files":
+                result = self.schema_tools.composite.compare_two_files(
+                    parameters.get("file1", ""), parameters.get("file2", "")
+                )
+            elif tool_name == "analyze_data_quality":
+                result = self.schema_tools.composite.analyze_data_quality()
             else:
                 result = f"Unknown tool: {tool_name}"
             
@@ -470,10 +338,8 @@ If no specific tool fits, respond with {{"tool": "list_files", "parameters": {{}
         """Get agent status information."""
         if self.mode == ProcessingMode.FUNCTION_CALLING:
             capabilities = ["native_function_calling", "parameter_extraction", "optimal_reliability"]
-        elif self.mode == ProcessingMode.STRUCTURED_OUTPUT:
-            capabilities = ["structured_prompting", "json_parsing", "pattern_fallback"]
-        else:  # ProcessingMode.PATTERN_MATCHING
-            capabilities = ["pattern_matching", "basic_queries"]
+        else:  # ProcessingMode.STRUCTURED_OUTPUT
+            capabilities = ["structured_prompting", "json_parsing"]
         
         return {
             'agent_type': 'SchemaAgent',
