@@ -34,7 +34,7 @@ class LLMAgent:
         
         # For structured output strategy, we might need LangChain LLM
         self.llm = None
-        if not self.strategy_factory._supports_function_calling(model_name) or strategy_type == "sql_agent":
+        if not self.strategy_factory._supports_function_calling(model_name) or strategy_type in ["sql_agent", "sql_agent_langgraph", "sql_agent_simple"]:
             self._initialize_llm()
         
         # Create appropriate strategy

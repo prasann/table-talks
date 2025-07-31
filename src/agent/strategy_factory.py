@@ -9,6 +9,8 @@ try:
     from .function_calling_strategy import FunctionCallingStrategy
     from .structured_output_strategy import StructuredOutputStrategy
     from .sql_agent_strategy import SQLAgentStrategy
+    from .sql_agent_langgraph import SQLAgentLangGraph
+    from .sql_agent_simple import SQLAgentSimple
 except ImportError:
     # Fallback for direct execution
     import sys
@@ -19,6 +21,8 @@ except ImportError:
     from agent.function_calling_strategy import FunctionCallingStrategy
     from agent.structured_output_strategy import StructuredOutputStrategy
     from agent.sql_agent_strategy import SQLAgentStrategy
+    from agent.sql_agent_langgraph import SQLAgentLangGraph
+    from agent.sql_agent_simple import SQLAgentSimple
 
 
 class QueryStrategyFactory:
@@ -52,6 +56,12 @@ class QueryStrategyFactory:
             if strategy_type == "sql_agent":
                 self.logger.info(f"Creating SQLAgentStrategy for model: {model_name}")
                 return SQLAgentStrategy(llm_agent=llm_agent)
+            elif strategy_type == "sql_agent_langgraph":
+                self.logger.info(f"Creating SQLAgentLangGraph for model: {model_name}")
+                return SQLAgentLangGraph(llm_agent=llm_agent)
+            elif strategy_type == "sql_agent_simple":
+                self.logger.info(f"Creating SQLAgentSimple for model: {model_name}")
+                return SQLAgentSimple(llm_agent=llm_agent)
             elif strategy_type == "function_calling":
                 self.logger.info(f"Creating FunctionCallingStrategy for model: {model_name}")
                 return FunctionCallingStrategy(base_url=base_url, model=model_name, schema_tools=schema_tools)
@@ -118,12 +128,30 @@ class QueryStrategyFactory:
             },
             "sql_agent": {
                 "name": "SQL Agent Strategy",
-                "description": "LangChain SQL agent for natural language to SQL conversion",
+                "description": "Direct SQL execution with simple retry logic",
                 "supported_models": ["phi3", "phi4", "llama2", "mistral", "gpt-4", "claude"],
-                "capabilities": ["natural_language_to_sql", "complex_query_analysis", "metadata_exploration"],
-                "performance": "excellent",
+                "capabilities": ["natural_language_to_sql", "direct_execution", "basic_retry"],
+                "performance": "good",
+                "recommended": False,
+                "use_case": "Simple SQL generation and execution"
+            },
+            "sql_agent_simple": {
+                "name": "Simple SQL Agent Strategy",
+                "description": "Lightweight SQL agent with rule-based generation and concise formatting",
+                "supported_models": ["phi3", "phi4", "llama2", "mistral", "gpt-4", "claude"],
+                "capabilities": ["rule_based_sql", "optional_llm_fallback", "concise_formatting", "fast_execution"],
+                "performance": "fast",
                 "recommended": True,
-                "use_case": "Advanced data analysis and exploration"
+                "use_case": "Quick data queries with minimal overhead"
+            },
+            "sql_agent_langgraph": {
+                "name": "LangGraph SQL Agent Strategy",
+                "description": "Advanced LangGraph agent with multi-step reasoning and intelligent formatting",
+                "supported_models": ["phi3", "phi4", "llama2", "mistral", "gpt-4", "claude"],
+                "capabilities": ["advanced_sql_generation", "multi_step_reasoning", "intelligent_formatting", "error_recovery"],
+                "performance": "excellent",
+                "recommended": False,
+                "use_case": "Complex data analysis with detailed explanations"
             }
         }
     

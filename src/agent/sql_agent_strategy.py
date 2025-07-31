@@ -28,6 +28,12 @@ class SQLAgentStrategy(QueryProcessingStrategy):
         self.metadata_store = metadata_store or MetadataStore(db_path)
         self.db_path = db_path
         
+        # Log initialization details
+        self.logger.info(f"[SQL_AGENT] Initializing SQL Agent Strategy")
+        self.logger.debug(f"[SQL_AGENT] LLM Agent provided: {llm_agent is not None}")
+        self.logger.debug(f"[SQL_AGENT] MetadataStore provided: {metadata_store is not None}")
+        self.logger.debug(f"[SQL_AGENT] Database path: {db_path}")
+        
         # Initialize SQL tools and agent
         self._sql_db = None
         self._sql_agent = None
@@ -64,19 +70,46 @@ class SQLAgentStrategy(QueryProcessingStrategy):
     def _initialize_sql_agent(self):
         """Initialize SQL agent using existing MetadataStore to avoid connection conflicts."""
         try:
+            self.logger.info(f"[SQL_AGENT] Starting SQL Agent initialization")
+            
             # Instead of creating a new DuckDB connection through LangChain,
             # use our existing MetadataStore which already has a working connection
             if self.llm and hasattr(self.llm, 'llm'):
+                self.logger.debug(f"[SQL_AGENT] LLM is available and has 'llm' attribute")
+                self.logger.debug(f"[SQL_AGENT] LLM type: {type(self.llm)}")
+                
+                if hasattr(self.llm, 'model_name'):
+                    self.logger.debug(f"[SQL_AGENT] LLM model: {self.llm.model_name}")
+                
                 # We'll use our MetadataStore for SQL execution
                 # and the LLM for query generation
                 self._sql_agent = "direct_execution"  # Use direct SQL execution
                 
-                self.logger.info("SQL Agent initialized with direct MetadataStore execution")
+                self.logger.info(f"[SQL_AGENT] SQL Agent initialized with direct MetadataStore execution")
+                self.logger.debug(f"[SQL_AGENT] MetadataStore database path: {self.metadata_store.db_path}")
+                
+                # Test the connection
+                try:
+                    import duckdb
+                    with duckdb.connect(str(self.metadata_store.db_path)) as conn:
+                        # Quick test query to verify schema_info table exists
+                        test_result = conn.execute("SELECT COUNT(*) FROM schema_info").fetchone()
+                        self.logger.info(f"[SQL_AGENT] Database connection test successful, schema_info has {test_result[0]} rows")
+                except Exception as test_error:
+                    self.logger.warning(f"[SQL_AGENT] Database connection test failed: {test_error}")
+                    self.logger.warning(f"[SQL_AGENT] This might mean the database is not initialized yet")
+                
             else:
-                self.logger.warning("LLM not available for SQL Agent - using fallback mode")
+                self.logger.warning(f"[SQL_AGENT] LLM not available for SQL Agent")
+                self.logger.debug(f"[SQL_AGENT] LLM object: {self.llm}")
+                self.logger.debug(f"[SQL_AGENT] LLM has 'llm' attr: {hasattr(self.llm, 'llm') if self.llm else 'N/A'}")
+                self.logger.warning(f"[SQL_AGENT] Using fallback mode")
                 
         except Exception as e:
-            self.logger.error(f"Failed to initialize SQL Agent: {e}")
+            self.logger.error(f"[SQL_AGENT] Failed to initialize SQL Agent: {e}")
+            self.logger.error(f"[SQL_AGENT] Exception type: {type(e)}")
+            import traceback
+            self.logger.error(f"[SQL_AGENT] Full traceback: {traceback.format_exc()}")
             # For connection errors, we should still allow fallback to work
             self._sql_agent = None
     
@@ -146,80 +179,177 @@ class SQLAgentStrategy(QueryProcessingStrategy):
             Dictionary with success status and results
         """
         try:
+            self.logger.info(f"[SQL_AGENT] Executing plan: {plan}")
+            
             if plan.get("agent_mode") and self._sql_agent == "direct_execution":
                 # Use direct SQL execution through MetadataStore
                 query = plan.get("query", "")
-                self.logger.info(f"Executing SQL query via MetadataStore: {query}")
+                self.logger.info(f"[SQL_AGENT] Processing query via SQL Agent: '{query}'")
                 
                 # Generate SQL query using LLM
+                self.logger.debug(f"[SQL_AGENT] Step 1: Generating SQL query from natural language")
                 sql_query = self._generate_sql_query(query)
                 
-                if sql_query and sql_query.strip().upper().startswith('SELECT'):
-                    # Execute the SQL query using MetadataStore's DuckDB connection
-                    result = self._execute_sql_direct(sql_query)
+                if sql_query and (sql_query.strip().upper().startswith('SELECT') or sql_query.strip().upper().startswith('WITH')):
+                    self.logger.info(f"[SQL_AGENT] Step 2: Generated valid SQL query: {sql_query}")
                     
-                    if result is not None:
-                        # Format the result
-                        formatted_result = self._format_sql_result(query, sql_query, result)
+                    # Execute the SQL query with retry logic
+                    self.logger.debug(f"[SQL_AGENT] Step 3: Executing SQL query against DuckDB with retry logic")
+                    execution_result = self._execute_sql_with_retry(sql_query, query)
+                    
+                    if execution_result['success']:
+                        self.logger.info(f"[SQL_AGENT] Step 4: SQL execution successful")
                         
+                        # Format the result
+                        self.logger.debug(f"[SQL_AGENT] Step 5: Formatting SQL result")
+                        formatted_result = self._format_sql_result(query, sql_query, execution_result['result'])
+                        
+                        self.logger.info(f"[SQL_AGENT] Query processing completed successfully")
                         return {
                             "success": True,
                             "result": formatted_result
                         }
                     else:
-                        # SQL execution failed, fall back
+                        # SQL execution failed even with retries, fall back
+                        self.logger.warning(f"[SQL_AGENT] SQL execution failed with retries: {execution_result.get('error')}, falling back to schema_tools")
                         return self._execute_fallback(plan, schema_tools)
                 else:
                     # Invalid or unsafe SQL, fall back to schema_tools
-                    self.logger.warning("Generated SQL was invalid or non-SELECT, using fallback")
+                    self.logger.warning(f"[SQL_AGENT] Generated SQL was invalid or non-SELECT: '{sql_query}', using fallback")
                     return self._execute_fallback(plan, schema_tools)
             else:
                 # Fallback to schema_tools for backward compatibility
+                self.logger.info(f"[SQL_AGENT] Using fallback mode - agent_mode: {plan.get('agent_mode')}, sql_agent: {self._sql_agent}")
                 return self._execute_fallback(plan, schema_tools)
                 
         except Exception as e:
-            self.logger.error(f"Error executing SQL Agent plan: {e}")
+            self.logger.error(f"[SQL_AGENT] Error executing SQL Agent plan: {e}")
+            self.logger.error(f"[SQL_AGENT] Exception type: {type(e)}")
+            import traceback
+            self.logger.error(f"[SQL_AGENT] Full traceback: {traceback.format_exc()}")
+            
             # Try fallback on error
             try:
+                self.logger.info(f"[SQL_AGENT] Attempting fallback after error")
                 return self._execute_fallback(plan, schema_tools)
             except Exception as fallback_error:
+                self.logger.error(f"[SQL_AGENT] Fallback also failed: {fallback_error}")
                 return {
                     "success": False,
                     "error": f"SQL Agent failed: {str(e)}, Fallback failed: {str(fallback_error)}"
                 }
     
+    def _execute_sql_with_retry(self, sql_query: str, original_query: str, max_retries: int = 2) -> dict:
+        """Execute SQL with simple retry logic for common errors."""
+        for attempt in range(max_retries + 1):
+            self.logger.info(f"[SQL_AGENT] SQL execution attempt {attempt + 1}/{max_retries + 1}")
+            
+            result = self._execute_sql_direct(sql_query)
+            
+            if result is not None:
+                return {'success': True, 'result': result}
+            
+            # If this was the last attempt, give up
+            if attempt == max_retries:
+                self.logger.error(f"[SQL_AGENT] All {max_retries + 1} attempts failed")
+                return {'success': False, 'error': 'SQL execution failed after retries'}
+            
+            # Try to generate a simpler query for the next attempt
+            self.logger.info(f"[SQL_AGENT] Attempting to generate simpler SQL for retry {attempt + 1}")
+            simplified_prompt = f"""The previous complex SQL query failed. Generate a simpler SQL query for: {original_query}
+
+Use only basic SELECT statements from the 'schema_info' table. Avoid:
+- CTEs (WITH clauses)
+- Complex JOINs
+- Subqueries
+- String aggregation
+
+Simple query for: {original_query}
+SQL:"""
+            
+            try:
+                if self.llm and hasattr(self.llm, 'llm'):
+                    response = self.llm.llm.invoke(simplified_prompt)
+                    if hasattr(response, 'content'):
+                        sql_query = response.content.strip()
+                    else:
+                        sql_query = str(response).strip()
+                    
+                    sql_query = sql_query.replace('```sql', '').replace('```', '').strip()
+                    self.logger.info(f"[SQL_AGENT] Generated simpler SQL for retry: {sql_query}")
+                else:
+                    break
+            except Exception as e:
+                self.logger.error(f"[SQL_AGENT] Failed to generate retry SQL: {e}")
+                break
+        
+        return {'success': False, 'error': 'SQL execution and retries failed'}
+
     def _execute_sql_direct(self, sql_query: str):
         """Execute SQL query directly using MetadataStore's DuckDB connection."""
         try:
             import duckdb
             
+            self.logger.info(f"[SQL_AGENT] Executing SQL query: {sql_query}")
+            self.logger.debug(f"[SQL_AGENT] Using database path: {self.metadata_store.db_path}")
+            
             # Use MetadataStore's database path for direct connection
             with duckdb.connect(str(self.metadata_store.db_path)) as conn:
-                self.logger.debug(f"Executing SQL: {sql_query}")
+                self.logger.debug(f"[SQL_AGENT] Connected to DuckDB successfully")
+                
+                self.logger.debug(f"[SQL_AGENT] About to execute query...")
                 result = conn.execute(sql_query).fetchall()
+                self.logger.info(f"[SQL_AGENT] Query executed successfully, got {len(result)} rows")
+                
+                # Log sample of results if available
+                if result:
+                    self.logger.debug(f"[SQL_AGENT] First few results: {result[:3] if len(result) > 3 else result}")
                 
                 # Convert result to string format
                 if not result:
+                    self.logger.info(f"[SQL_AGENT] No results returned from query")
                     return "No results found"
                 
                 # Format as simple string representation
                 formatted_rows = []
-                for row in result:
-                    formatted_rows.append(" | ".join(str(col) for col in row))
+                for i, row in enumerate(result):
+                    formatted_row = " | ".join(str(col) for col in row)
+                    formatted_rows.append(formatted_row)
+                    if i < 3:  # Log first few rows for debugging
+                        self.logger.debug(f"[SQL_AGENT] Row {i}: {formatted_row}")
                 
-                return "\n".join(formatted_rows)
+                final_result = "\n".join(formatted_rows)
+                self.logger.info(f"[SQL_AGENT] Successfully formatted {len(formatted_rows)} result rows")
+                
+                return final_result
                 
         except Exception as e:
             error_msg = str(e)
-            self.logger.error(f"Direct SQL execution failed: {error_msg}")
+            self.logger.error(f"[SQL_AGENT] Direct SQL execution failed: {error_msg}")
+            self.logger.error(f"[SQL_AGENT] Exception type: {type(e)}")
+            self.logger.error(f"[SQL_AGENT] Failed query: {sql_query}")
             
-            # Provide helpful error context
+            # Provide helpful error context with more detail
             if "Ambiguous reference" in error_msg:
-                self.logger.info("SQL query had ambiguous column references - will try fallback")
+                self.logger.error(f"[SQL_AGENT] AMBIGUOUS REFERENCE ERROR detected")
+                self.logger.error(f"[SQL_AGENT] This means column names need table aliases (e.g., s1.column_name)")
+                self.logger.info(f"[SQL_AGENT] Will try fallback due to ambiguous column references")
             elif "Binder Error" in error_msg:
-                self.logger.info("SQL query had binding issues - will try fallback")
+                self.logger.error(f"[SQL_AGENT] BINDER ERROR detected")
+                self.logger.error(f"[SQL_AGENT] This usually means column or table names don't exist")
+                self.logger.info(f"[SQL_AGENT] Will try fallback due to binding issues")
             elif "no such table" in error_msg.lower():
-                self.logger.info("Table not found - database may not be initialized")
+                self.logger.error(f"[SQL_AGENT] TABLE NOT FOUND error")
+                self.logger.error(f"[SQL_AGENT] The 'schema_info' table may not exist or database not initialized")
+                self.logger.info(f"[SQL_AGENT] Will try fallback - database may not be initialized")
+            elif "syntax" in error_msg.lower():
+                self.logger.error(f"[SQL_AGENT] SYNTAX ERROR detected")
+                self.logger.error(f"[SQL_AGENT] The generated SQL has syntax issues")
+            else:
+                self.logger.error(f"[SQL_AGENT] Unknown error type: {error_msg}")
+            
+            import traceback
+            self.logger.error(f"[SQL_AGENT] Full traceback: {traceback.format_exc()}")
             
             return None
     
@@ -273,29 +403,52 @@ SQL:"""
 
             prompt = system_prompt.format(query=natural_language_query)
             
+            self.logger.info(f"[SQL_AGENT] Generating SQL for query: '{natural_language_query}'")
+            self.logger.debug(f"[SQL_AGENT] Full prompt sent to LLM:\n{prompt}")
+            
             if self.llm and hasattr(self.llm, 'llm'):
+                self.logger.debug(f"[SQL_AGENT] Calling LLM model: {getattr(self.llm, 'model_name', 'unknown')}")
+                
                 response = self.llm.llm.invoke(prompt)
                 
+                # Log the raw response from LLM
+                self.logger.info(f"[SQL_AGENT] Raw LLM response type: {type(response)}")
+                
                 if hasattr(response, 'content'):
-                    sql_query = response.content.strip()
+                    raw_content = response.content
+                    self.logger.info(f"[SQL_AGENT] Raw LLM response content: '{raw_content}'")
+                    sql_query = raw_content.strip()
                 else:
-                    sql_query = str(response).strip()
+                    raw_content = str(response)
+                    self.logger.info(f"[SQL_AGENT] Raw LLM response (as string): '{raw_content}'")
+                    sql_query = raw_content.strip()
+                
+                # Log the cleaning process
+                self.logger.debug(f"[SQL_AGENT] Before cleaning: '{sql_query}'")
                 
                 # Clean up the SQL query
                 sql_query = sql_query.replace('```sql', '').replace('```', '').strip()
                 
-                # Basic validation - ensure it's a SELECT query
-                if not sql_query.strip().upper().startswith('SELECT'):
-                    self.logger.warning(f"Generated query is not a SELECT statement: {sql_query}")
+                self.logger.debug(f"[SQL_AGENT] After cleaning: '{sql_query}'")
+                
+                # Basic validation - ensure it's a SELECT query (including CTEs that start with WITH)
+                sql_upper = sql_query.strip().upper()
+                if not (sql_upper.startswith('SELECT') or sql_upper.startswith('WITH')):
+                    self.logger.warning(f"[SQL_AGENT] Generated query is not a SELECT statement: '{sql_query[:50]}...'")
+                    self.logger.warning(f"[SQL_AGENT] Query starts with: '{sql_query[:20] if sql_query else 'EMPTY'}'")
                     return None
                 
-                self.logger.debug(f"Generated SQL: {sql_query}")
+                self.logger.info(f"[SQL_AGENT] Final generated SQL: {sql_query}")
                 return sql_query
-            
-            return None
+            else:
+                self.logger.error(f"[SQL_AGENT] LLM not available - llm: {self.llm}, has_llm_attr: {hasattr(self.llm, 'llm') if self.llm else False}")
+                return None
             
         except Exception as e:
-            self.logger.error(f"Error generating SQL query: {e}")
+            self.logger.error(f"[SQL_AGENT] Error generating SQL query: {e}")
+            self.logger.error(f"[SQL_AGENT] Exception type: {type(e)}")
+            import traceback
+            self.logger.error(f"[SQL_AGENT] Full traceback: {traceback.format_exc()}")
             return None
     
     def _format_sql_result(self, original_query: str, sql_query: str, result: str) -> str:

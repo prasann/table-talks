@@ -11,7 +11,7 @@ llm:
   base_url: "http://localhost:11434"
   temperature: 0.1
   max_tokens: 3000
-  strategy_type: sql_agent  # Options: "function_calling", "structured_output", "sql_agent", or null for auto-detection
+  strategy_type: sql_agent_simple  # Options: "function_calling", "structured_output", "sql_agent", "sql_agent_langgraph", "sql_agent_simple", or null for auto-detection
 
 # File scanning settings
 scanner:
