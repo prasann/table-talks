@@ -43,6 +43,9 @@ def load_config() -> dict:
                 'temperature': 0.1,
                 'max_tokens': 1000
             },
+            'agent': {
+                'use_modern_agent': True  # Default to modern agent
+            },
             'scanner': {
                 'max_file_size_mb': 100,
                 'sample_size': 1000

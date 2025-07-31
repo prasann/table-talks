@@ -13,6 +13,10 @@ llm:
   max_tokens: 3000
   strategy_type: null  # Options: "function_calling", "structured_output", or null for auto-detection
 
+# Agent settings
+agent:
+  use_modern_agent: true  # Use SQLAlchemy + Great Expectations (true) or original tools (false)
+
 # File scanning settings
 scanner:
   supported_formats: ["csv", "parquet"]

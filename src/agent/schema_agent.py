@@ -1,4 +1,4 @@
-"""SchemaAgent - Unified agent for DuckDB schema queries with auto-capability detection."""
+"""SchemaAgent - Modern agent using SQLAlchemy + Great Expectations."""
 
 import json
 import logging
@@ -15,7 +15,7 @@ if src_dir not in sys.path:
 
 # Always use absolute imports from src
 from utils.logger import get_logger
-from tools.schema_tools import SchemaTools
+from analysis.schema_analyzer import SchemaAnalyzer, create_schema_analyzer
 
 
 class ProcessingMode(Enum):
@@ -25,20 +25,23 @@ class ProcessingMode(Enum):
 
 
 class SchemaAgent:
-    """Unified agent for processing natural language queries about data schemas.
+    """Modern schema agent using SQLAlchemy + Great Expectations.
     
-    Auto-detects model capabilities and uses the best approach:
-    - Function calling for phi4-mini-fc models
-    - Structured output for phi3/phi4 models  
-    - Pattern matching fallback
+    Provides comprehensive schema analysis and data quality assessment
+    using mature libraries instead of custom implementations.
     """
     
-    def __init__(self, schema_tools: SchemaTools, model_name: str = "phi3", base_url: str = "http://localhost:11434"):
+    def __init__(self, database_path: str, model_name: str = "phi3", base_url: str = "http://localhost:11434"):
         """Initialize SchemaAgent with auto-capability detection."""
-        self.schema_tools = schema_tools
+        self.database_path = database_path
         self.model_name = model_name
         self.base_url = base_url
         self.logger = get_logger("tabletalk.schema_agent")
+        
+        # Initialize the schema analyzer
+        self.analyzer = create_schema_analyzer(database_path)
+        if not self.analyzer:
+            raise RuntimeError(f"Failed to create schema analyzer for: {database_path}")
         
         # Auto-detect capabilities once at startup
         self.supports_function_calling = self._detect_function_calling()
@@ -217,11 +220,144 @@ If no specific tool fits, respond with {{"tool": "list_files", "parameters": {{}
             return f"I'm having trouble with structured output. Please try rephrasing your question."
     
     def _get_function_calling_tools(self) -> List[Dict]:
-        """Get tool definitions for function calling from the unified schema tools."""
-        return self.schema_tools.get_function_calling_tools()
+        """Get tool definitions for function calling from the schema analyzer."""
+        return [
+            {
+                "type": "function",
+                "function": {
+                    "name": "list_files",
+                    "description": "List all available tables/files in the database",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {},
+                        "required": []
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_file_schema",
+                    "description": "Get detailed schema information for a specific table/file",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "file_name": {
+                                "type": "string",
+                                "description": "Name of the table/file to get schema for"
+                            }
+                        },
+                        "required": ["file_name"]
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "search_columns",
+                    "description": "Search for columns containing a specific term across all tables",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "search_term": {
+                                "type": "string",
+                                "description": "Term to search for in column names"
+                            }
+                        },
+                        "required": ["search_term"]
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_column_data_types",
+                    "description": "Get data types for a specific column across all tables",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "column_name": {
+                                "type": "string",
+                                "description": "Name of the column to analyze"
+                            }
+                        },
+                        "required": ["column_name"]
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_database_summary",
+                    "description": "Get comprehensive database summary with statistics",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {},
+                        "required": []
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "detect_type_mismatches",
+                    "description": "Find columns with inconsistent types across tables",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {},
+                        "required": []
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "find_common_columns",
+                    "description": "Find columns that appear in multiple tables",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {},
+                        "required": []
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "compare_two_files",
+                    "description": "Compare schemas between two specific tables",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "file1": {
+                                "type": "string",
+                                "description": "Name of the first table to compare"
+                            },
+                            "file2": {
+                                "type": "string",
+                                "description": "Name of the second table to compare"
+                            }
+                        },
+                        "required": ["file1", "file2"]
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "analyze_data_quality",
+                    "description": "Perform comprehensive data quality analysis across all tables",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {},
+                        "required": []
+                    }
+                }
+            }
+        ]
     
     def _execute_function_calls(self, response_data: dict, original_query: str) -> str:
-        """Execute function calls and return formatted results."""
+        """Execute function calls using the schema analyzer."""
         try:
             message = response_data.get("message", {})
             tool_calls = message.get("tool_calls", [])
@@ -250,31 +386,8 @@ If no specific tool fits, respond with {{"tool": "list_files", "parameters": {{}
                 self.logger.debug(f"Function call {i+1}: {function_name} with args: {arguments}")
                 
                 try:
-                    # Execute the function using the actual tool methods
-                    if function_name == "get_file_schema":
-                        result = self.schema_tools.atomic.get_file_schema(arguments.get("file_name", ""))
-                    elif function_name == "list_files":
-                        result = self.schema_tools.atomic.list_files()
-                    elif function_name == "search_columns":
-                        result = self.schema_tools.atomic.search_columns(arguments.get("search_term", ""))
-                    elif function_name == "get_column_data_types":
-                        result = self.schema_tools.atomic.get_column_data_types(arguments.get("column_name", ""))
-                    elif function_name == "get_database_summary":
-                        result = self.schema_tools.atomic.get_database_summary()
-                    elif function_name == "detect_type_mismatches":
-                        result = self.schema_tools.composite.detect_type_mismatches()
-                    elif function_name == "find_common_columns":
-                        result = self.schema_tools.composite.find_common_columns()
-                    elif function_name == "compare_two_files":
-                        result = self.schema_tools.composite.compare_two_files(
-                            arguments.get("file1", ""), arguments.get("file2", "")
-                        )
-                    elif function_name == "analyze_data_quality":
-                        result = self.schema_tools.composite.analyze_data_quality()
-                    else:
-                        result = f"Unknown function: {function_name}"
-                        self.logger.error(f"Unknown function called: {function_name}")
-                
+                    # Execute the function using the schema analyzer
+                    result = self._call_analyzer_method(function_name, arguments)
                     self.logger.debug(f"Function {function_name} result length: {len(result)} characters")
                     results.append(result)
                     
@@ -292,7 +405,7 @@ If no specific tool fits, respond with {{"tool": "list_files", "parameters": {{}
             return f"Error executing functions: {e}"
     
     def _execute_structured_plan(self, plan: dict, original_query: str) -> str:
-        """Execute structured plan and return formatted results."""
+        """Execute structured plan using the schema analyzer."""
         try:
             tool_name = plan.get("tool")
             parameters = plan.get("parameters", {})
@@ -300,35 +413,38 @@ If no specific tool fits, respond with {{"tool": "list_files", "parameters": {{}
             
             self.logger.debug(f"Executing structured plan - Tool: {tool_name}, Params: {parameters}, Explanation: {explanation}")
             
-            if tool_name == "get_file_schema":
-                result = self.schema_tools.atomic.get_file_schema(parameters.get("file_name", ""))
-            elif tool_name == "list_files":
-                result = self.schema_tools.atomic.list_files()
-            elif tool_name == "search_columns":
-                result = self.schema_tools.atomic.search_columns(parameters.get("search_term", ""))
-            elif tool_name == "get_column_data_types":
-                result = self.schema_tools.atomic.get_column_data_types(parameters.get("column_name", ""))
-            elif tool_name == "get_database_summary":
-                result = self.schema_tools.atomic.get_database_summary()
-            elif tool_name == "detect_type_mismatches":
-                result = self.schema_tools.composite.detect_type_mismatches()
-            elif tool_name == "find_common_columns":
-                result = self.schema_tools.composite.find_common_columns()
-            elif tool_name == "compare_two_files":
-                result = self.schema_tools.composite.compare_two_files(
-                    parameters.get("file1", ""), parameters.get("file2", "")
-                )
-            elif tool_name == "analyze_data_quality":
-                result = self.schema_tools.composite.analyze_data_quality()
-            else:
-                result = f"Unknown tool: {tool_name}"
-            
+            result = self._call_analyzer_method(tool_name, parameters)
             self.logger.debug(f"Structured plan execution result length: {len(result)} characters")
             return result
                 
         except Exception as e:
             self.logger.error(f"Structured plan execution failed: {e}")
             return f"Error executing plan: {e}"
+    
+    def _call_analyzer_method(self, function_name: str, arguments: dict) -> str:
+        """Call the appropriate method on the schema analyzer."""
+        if function_name == "list_files":
+            return self.analyzer.list_files()
+        elif function_name == "get_file_schema":
+            return self.analyzer.get_file_schema(arguments.get("file_name", ""))
+        elif function_name == "search_columns":
+            return self.analyzer.search_columns(arguments.get("search_term", ""))
+        elif function_name == "get_column_data_types":
+            return self.analyzer.get_column_data_types(arguments.get("column_name", ""))
+        elif function_name == "get_database_summary":
+            return self.analyzer.get_database_summary()
+        elif function_name == "detect_type_mismatches":
+            return self.analyzer.detect_type_mismatches()
+        elif function_name == "find_common_columns":
+            return self.analyzer.find_common_columns()
+        elif function_name == "compare_two_files":
+            return self.analyzer.compare_two_files(
+                arguments.get("file1", ""), arguments.get("file2", "")
+            )
+        elif function_name == "analyze_data_quality":
+            return self.analyzer.analyze_data_quality()
+        else:
+            return f"Unknown function: {function_name}"
     
     def check_llm_availability(self) -> bool:
         """Check if LLM is available."""
@@ -341,6 +457,10 @@ If no specific tool fits, respond with {{"tool": "list_files", "parameters": {{}
         else:  # ProcessingMode.STRUCTURED_OUTPUT
             capabilities = ["structured_prompting", "json_parsing"]
         
+        # Add library-specific capabilities
+        analyzer_status = self.analyzer.get_status()
+        capabilities.extend(analyzer_status.get('capabilities', []))
+        
         return {
             'agent_type': 'SchemaAgent',
             'mode': self.mode.value,
@@ -348,5 +468,12 @@ If no specific tool fits, respond with {{"tool": "list_files", "parameters": {{}
             'base_url': self.base_url,
             'llm_available': self.structured_llm is not None, 
             'function_calling': self.supports_function_calling,
-            'capabilities': capabilities
+            'capabilities': capabilities,
+            'analyzer_status': analyzer_status
         }
+    
+    def close(self):
+        """Clean up resources."""
+        if self.analyzer:
+            self.analyzer.close()
+        self.logger.debug("SchemaAgent closed")
