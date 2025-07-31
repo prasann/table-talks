@@ -1,6 +1,5 @@
 """TableTalk main entry point."""
 
-import os
 import sys
 import yaml
 import logging
@@ -11,14 +10,8 @@ from pathlib import Path
 warnings.filterwarnings("ignore", category=DeprecationWarning, module="langchain")
 warnings.filterwarnings("ignore", message=".*deprecated.*", category=DeprecationWarning)
 
-# Ensure src is in Python path for consistent imports
-src_dir = os.path.dirname(os.path.abspath(__file__))
-if src_dir not in sys.path:
-    sys.path.insert(0, src_dir)
-
-# Always use absolute imports from src
-from cli.chat_interface import ChatInterface
-from utils.logger import setup_logger
+from src.cli.chat_interface import ChatInterface
+from src.utils.logger import setup_logger
 
 
 def load_config() -> dict:

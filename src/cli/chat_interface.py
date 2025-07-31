@@ -1,33 +1,10 @@
 """Simple chat interface for TableTalk."""
 
-import os
-import sys
 from pathlib import Path
 
-# Ensure src is in Python path for consistent imports
-src_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-if src_dir not in sys.path:
-    sys.path.insert(0, src_dir)
-
-# Always use absolute imports from src
 from metadata.metadata_store import MetadataStore
 from metadata.schema_extractor import SchemaExtractor
-
-# Import schema agent
-try:
-    from agent.schema_agent import SchemaAgent
-    SCHEMA_AGENT_AVAILABLE = True
-except ImportError:
-    SCHEMA_AGENT_AVAILABLE = False
-
-# Import old components only if library agent is not available
-OLD_AGENT_AVAILABLE = False
-try:
-    from tools.schema_tools import SchemaTools
-    from agent.schema_agent import SchemaAgent
-    OLD_AGENT_AVAILABLE = True
-except ImportError:
-    pass
+from agent.schema_agent import SchemaAgent
 
 
 class ChatInterface:
@@ -44,40 +21,14 @@ class ChatInterface:
             sample_size=config['scanner']['sample_size']
         )
         
-        # Only initialize schema_tools if old agent is available
-        self.schema_tools = None
-        if OLD_AGENT_AVAILABLE:
-            self.schema_tools = SchemaTools(self.metadata_store)
-        
-        # Choose agent type based on configuration and availability
-        use_modern_agent = config.get('agent', {}).get('use_modern_agent', True)
-        
-        # Force modern agent if old agent is not available
-        if not OLD_AGENT_AVAILABLE:
-            use_modern_agent = True
-            
-        agent_type = "Modern" if use_modern_agent and SCHEMA_AGENT_AVAILABLE else "Original"
-        
         # Initialize Schema agent
         try:
-            if use_modern_agent and SCHEMA_AGENT_AVAILABLE:
-                print("🔬 Using modern schema agent (SQLAlchemy + Great Expectations)")
-                self.agent = SchemaAgent(
-                    database_path=config['database']['path'],
-                    model_name=config['llm']['model'],
-                    base_url=config['llm']['base_url']
-                )
-            elif OLD_AGENT_AVAILABLE and self.schema_tools:
-                if use_modern_agent and not SCHEMA_AGENT_AVAILABLE:
-                    print("⚠️ Modern schema agent not available, falling back to original agent")
-                print("🔧 Using original agent (custom tools)")
-                self.agent = SchemaAgent(
-                    schema_tools=self.schema_tools,
-                    model_name=config['llm']['model'],
-                    base_url=config['llm']['base_url']
-                )
-            else:
-                raise RuntimeError("No compatible agent available. Please install required dependencies.")
+            print("🔬 Using modern schema agent (SQLAlchemy + Great Expectations)")
+            self.agent = SchemaAgent(
+                database_path=config['database']['path'],
+                model_name=config['llm']['model'],
+                base_url=config['llm']['base_url']
+            )
             
             # Get status to display the right message
             status = self.agent.get_status()

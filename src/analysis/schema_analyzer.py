@@ -5,14 +5,18 @@ import sys
 from typing import Dict, List, Optional, Any, Union
 from pathlib import Path
 
-# Ensure src is in Python path for consistent imports
-src_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-if src_dir not in sys.path:
-    sys.path.insert(0, src_dir)
+# Rich imports for beautiful terminal output
+from rich.console import Console
+from rich.table import Table
+from rich.panel import Panel
+from rich.text import Text
 
-from utils.logger import get_logger
-from metadata.sqlalchemy_inspector import SQLAlchemyInspector, create_inspector
+from src.utils.logger import get_logger
+from src.metadata.sqlalchemy_inspector import SQLAlchemyInspector, create_inspector
 from quality.expectations_analyzer import ExpectationsAnalyzer, create_analyzer
+
+# Initialize Rich console for output formatting
+console = Console()
 
 
 class SchemaAnalyzer:
@@ -68,38 +72,45 @@ class SchemaAnalyzer:
         """
         try:
             if not self.sql_available:
-                return "❌ SQLAlchemy not available - cannot list tables"
+                console.print("[red]SQLAlchemy not available - cannot list tables[/red]")
+                return ""
             
             tables = self.sql_inspector.get_tables()
             
             if not tables:
-                return "📋 No tables found in the database."
+                console.print("[yellow]No tables found in the database[/yellow]")
+                return ""
             
-            result = f"📋 **Available Tables ({len(tables)} total):**\n\n"
+            # Create a table for better formatting
+            table = Table(title=f"Database Tables ({len(tables)} total)")
+            table.add_column("Table", style="cyan", no_wrap=True)
+            table.add_column("Columns", justify="right", style="magenta")
+            table.add_column("Rows", justify="right", style="green")
+            table.add_column("Sample Columns", style="dim")
             
-            for i, table in enumerate(tables, 1):
+            for table_name in tables:
                 # Get basic table info
-                columns = self.sql_inspector.get_columns(table)
-                stats = self.sql_inspector.get_table_stats(table)
-                
-                result += f"{i}. **{table}**\n"
-                result += f"   - Columns: {len(columns)}\n"
-                result += f"   - Rows: {stats.get('row_count', 'Unknown')}\n"
+                columns = self.sql_inspector.get_columns(table_name)
+                stats = self.sql_inspector.get_table_stats(table_name)
                 
                 # Show first few column names
-                if columns:
-                    col_names = [col['name'] for col in columns[:3]]
-                    if len(columns) > 3:
-                        col_names.append(f"... and {len(columns) - 3} more")
-                    result += f"   - Sample columns: {', '.join(col_names)}\n"
+                col_names = [col['name'] for col in columns[:3]]
+                if len(columns) > 3:
+                    col_names.append(f"... +{len(columns) - 3} more")
+                sample_cols = ", ".join(col_names) if col_names else "None"
                 
-                result += "\n"
+                row_count = stats.get('row_count', 0)
+                row_display = f"{row_count:,}" if isinstance(row_count, int) else str(row_count)
+                
+                table.add_row(table_name, str(len(columns)), row_display, sample_cols)
             
-            return result
+            console.print(table)
+            return ""
             
         except Exception as e:
             self.logger.error(f"Failed to list files: {e}")
-            return f"❌ Error listing tables: {e}"
+            console.print(f"[red]Error listing tables: {e}[/red]")
+            return ""
     
     def get_file_schema(self, file_name: str) -> str:
         """Get detailed schema for a specific table.
@@ -112,13 +123,16 @@ class SchemaAnalyzer:
         """
         try:
             if not self.sql_available:
-                return f"❌ SQLAlchemy not available - cannot get schema for '{file_name}'"
+                console.print(f"[red]SQLAlchemy not available - cannot get schema for '{file_name}'[/red]")
+                return ""
             
             # Check if table exists
             tables = self.sql_inspector.get_tables()
             if file_name not in tables:
                 available = ", ".join(tables) if tables else "none"
-                return f"❌ Table '{file_name}' not found. Available tables: {available}"
+                console.print(f"[red]Table '{file_name}' not found[/red]")
+                console.print(f"[dim]Available tables: {available}[/dim]")
+                return ""
             
             # Get comprehensive schema information
             columns = self.sql_inspector.get_columns(file_name)
@@ -127,58 +141,67 @@ class SchemaAnalyzer:
             indexes = self.sql_inspector.get_indexes(file_name)
             stats = self.sql_inspector.get_table_stats(file_name)
             
-            result = f"📊 **Schema for table: {file_name}**\n\n"
+            # Title panel
+            title_panel = Panel(f"[bold blue]Schema: {file_name}[/bold blue]", style="blue")
+            console.print(title_panel)
             
             # Basic statistics
-            result += "**📈 Table Statistics:**\n"
-            result += f"- Rows: {stats.get('row_count', 'Unknown')}\n"
-            result += f"- Columns: {len(columns)}\n"
-            result += f"- Estimated size: {stats.get('estimated_size_bytes', 0):,} bytes\n\n"
+            row_count = stats.get('row_count', 0)
+            size_bytes = stats.get('estimated_size_bytes', 0)
+            size_mb = size_bytes / (1024 * 1024) if size_bytes > 0 else 0
             
-            # Column details
-            result += "**📋 Columns:**\n"
-            for i, col in enumerate(columns, 1):
-                result += f"{i:2d}. **{col['name']}**\n"
-                result += f"    - Type: {col['type']}\n"
-                result += f"    - Nullable: {'Yes' if col['nullable'] else 'No'}\n"
-                
+            console.print(f"Rows: [green]{row_count:,}[/green] | "
+                         f"Columns: [magenta]{len(columns)}[/magenta] | "
+                         f"Size: [yellow]{size_mb:.1f} MB[/yellow]")
+            console.print()
+            
+            # Columns table
+            col_table = Table(title="Columns", show_header=True, header_style="bold magenta")
+            col_table.add_column("Column", style="cyan")
+            col_table.add_column("Type", style="yellow")
+            col_table.add_column("Nullable", justify="center", style="dim")
+            col_table.add_column("Constraints", style="green")
+            
+            for col in columns:
+                constraints = []
                 if col.get('primary_key'):
-                    result += f"    - 🔑 Primary Key\n"
-                
+                    constraints.append("PK")
                 if col.get('default') is not None:
-                    result += f"    - Default: {col['default']}\n"
+                    constraints.append(f"DEFAULT {col['default']}")
                 
-                result += "\n"
+                nullable = "✓" if col['nullable'] else "✗"
+                constraint_str = ", ".join(constraints) if constraints else ""
+                
+                col_table.add_row(col['name'], str(col['type']), nullable, constraint_str)
             
-            # Primary keys
+            console.print(col_table)
+            
+            # Additional info if present
             if primary_keys:
-                result += f"**🔑 Primary Keys:** {', '.join(primary_keys)}\n\n"
+                console.print(f"\n[bold green]Primary Keys:[/bold green] {', '.join(primary_keys)}")
             
-            # Foreign keys
             if foreign_keys:
-                result += "**🔗 Foreign Keys:**\n"
+                console.print(f"\n[bold blue]Foreign Keys:[/bold blue]")
                 for fk in foreign_keys:
                     constrained_cols = ', '.join(fk.get('constrained_columns', []))
                     referred_table = fk.get('referred_table', 'unknown')
                     referred_cols = ', '.join(fk.get('referred_columns', []))
-                    result += f"- {constrained_cols} → {referred_table}({referred_cols})\n"
-                result += "\n"
+                    console.print(f"  • {constrained_cols} → {referred_table}({referred_cols})")
             
-            # Indexes
             if indexes:
-                result += "**📇 Indexes:**\n"
+                console.print(f"\n[bold yellow]Indexes:[/bold yellow]")
                 for idx in indexes:
                     idx_name = idx.get('name', 'unnamed')
                     idx_cols = ', '.join(idx.get('column_names', []))
                     unique_str = " (UNIQUE)" if idx.get('unique') else ""
-                    result += f"- {idx_name}: {idx_cols}{unique_str}\n"
-                result += "\n"
+                    console.print(f"  • {idx_name}: {idx_cols}{unique_str}")
             
-            return result
+            return ""
             
         except Exception as e:
             self.logger.error(f"Failed to get schema for '{file_name}': {e}")
-            return f"❌ Error getting schema for '{file_name}': {e}"
+            console.print(f"[red]Error getting schema for '{file_name}': {e}[/red]")
+            return ""
     
     def get_database_summary(self) -> str:
         """Get comprehensive database summary.
@@ -188,33 +211,37 @@ class SchemaAnalyzer:
         """
         try:
             if not self.sql_available:
-                return "❌ SQLAlchemy not available - cannot generate database summary"
+                console.print("[red]SQLAlchemy not available - cannot generate database summary[/red]")
+                return ""
             
             summary = self.sql_inspector.get_database_summary()
             
             if 'error' in summary:
-                return f"❌ Error generating database summary: {summary['error']}"
+                console.print(f"[red]Error generating database summary: {summary['error']}[/red]")
+                return ""
             
-            result = "🗃️ **Database Summary**\n\n"
+            # Database summary panel
+            title_panel = Panel(f"[bold blue]Database Summary[/bold blue]", style="blue")
+            console.print(title_panel)
             
             # Overall statistics
-            result += "**📊 Overall Statistics:**\n"
-            result += f"- Database: {summary['database_path']}\n"
-            result += f"- Total tables: {summary['total_tables']}\n"
-            result += f"- Total rows: {summary['total_rows']:,}\n"
-            result += f"- Total columns: {summary['total_columns']}\n\n"
+            console.print(f"Database: [cyan]{summary['database_path']}[/cyan]")
+            console.print(f"Total tables: [green]{summary['total_tables']}[/green]")
+            console.print(f"Total rows: [yellow]{summary['total_rows']:,}[/yellow]")
+            console.print(f"Total columns: [magenta]{summary['total_columns']}[/magenta]")
+            console.print()
             
             # Table-by-table breakdown
             if summary['tables']:
-                result += "**📋 Tables Breakdown:**\n"
+                db_table = Table(title="Tables Breakdown")
+                db_table.add_column("Table", style="cyan")
+                db_table.add_column("Rows", justify="right", style="green")
+                db_table.add_column("Columns", justify="right", style="magenta")
+                db_table.add_column("Data Types", style="dim")
                 
                 for table_name, table_info in summary['tables'].items():
                     stats = table_info.get('stats', {})
                     columns = table_info.get('columns', [])
-                    
-                    result += f"- **{table_name}**\n"
-                    result += f"  - Rows: {stats.get('row_count', 0):,}\n"
-                    result += f"  - Columns: {len(columns)}\n"
                     
                     # Show data types distribution
                     type_counts = {}
@@ -222,17 +249,24 @@ class SchemaAnalyzer:
                         col_type = str(col.get('type', 'unknown')).split('(')[0]  # Remove length info
                         type_counts[col_type] = type_counts.get(col_type, 0) + 1
                     
-                    if type_counts:
-                        types_str = ', '.join([f"{t}({c})" for t, c in type_counts.items()])
-                        result += f"  - Types: {types_str}\n"
+                    types_str = ', '.join([f"{t}({c})" for t, c in type_counts.items()]) if type_counts else "None"
+                    row_count = stats.get('row_count', 0)
                     
-                    result += "\n"
+                    db_table.add_row(
+                        table_name,
+                        f"{row_count:,}",
+                        str(len(columns)),
+                        types_str
+                    )
+                
+                console.print(db_table)
             
-            return result
+            return ""
             
         except Exception as e:
             self.logger.error(f"Failed to generate database summary: {e}")
-            return f"❌ Error generating database summary: {e}"
+            console.print(f"[red]Error generating database summary: {e}[/red]")
+            return ""
     
     # ===== Data Quality Operations =====
     
@@ -257,67 +291,76 @@ class SchemaAnalyzer:
                 self.logger.warning(f"Great Expectations analysis error: {analysis['error']}, falling back to basic analysis")
                 return self._basic_data_quality_analysis()
             
-            result = "🔍 **Data Quality Analysis**\n\n"
-            
-            # Overall quality score
+            # Display results using Rich
             overall_score = analysis.get('overall_quality_score', 0)
-            score_emoji = "🟢" if overall_score >= 80 else "🟡" if overall_score >= 60 else "🔴"
-            result += f"**{score_emoji} Overall Quality Score: {overall_score:.1f}%**\n\n"
-            
-            # Summary statistics
             total_tables = analysis.get('total_tables', 0)
-            result += f"📊 **Summary:**\n"
-            result += f"- Tables analyzed: {total_tables}\n"
+            
+            # Quality score panel with color coding
+            if overall_score >= 80:
+                score_color = "green"
+                status = "Excellent"
+            elif overall_score >= 60:
+                score_color = "yellow"
+                status = "Good"
+            else:
+                score_color = "red"
+                status = "Needs Attention"
+            
+            title_panel = Panel(
+                f"[bold {score_color}]Data Quality: {overall_score:.1f}% ({status})[/bold {score_color}]",
+                style=score_color
+            )
+            console.print(title_panel)
+            
+            console.print(f"Tables analyzed: [cyan]{total_tables}[/cyan]")
             
             # Issues summary
             issues = analysis.get('issues_summary', [])
             if issues:
-                result += f"- Total issues found: {len(issues)}\n\n"
-                
-                result += "⚠️ **Issues Found:**\n"
-                for i, issue in enumerate(issues[:10], 1):  # Show first 10 issues
-                    result += f"{i}. {issue}\n"
-                
-                if len(issues) > 10:
-                    result += f"... and {len(issues) - 10} more issues\n"
-                result += "\n"
+                console.print(f"Issues found: [red]{len(issues)}[/red]")
+                console.print("\n[bold red]Top Issues:[/bold red]")
+                for i, issue in enumerate(issues[:5], 1):
+                    console.print(f"  {i}. {issue}")
+                if len(issues) > 5:
+                    console.print(f"  ... and {len(issues) - 5} more issues")
             else:
-                result += "- No issues found! 🎉\n\n"
+                console.print("Issues found: [green]0[/green] ✨")
             
-            # Table-by-table quality scores
+            # Table-by-table results
             tables_analyzed = analysis.get('tables_analyzed', {})
             if tables_analyzed:
-                result += "📋 **Quality by Table:**\n"
+                console.print(f"\n[bold magenta]Quality by Table:[/bold magenta]")
+                
+                quality_table = Table()
+                quality_table.add_column("Table", style="cyan")
+                quality_table.add_column("Quality Score", justify="right")
+                quality_table.add_column("Status", justify="center")
                 
                 for table_name, table_analysis in tables_analyzed.items():
                     if 'error' in table_analysis:
-                        result += f"- **{table_name}**: ❌ Analysis failed\n"
+                        quality_table.add_row(table_name, "—", "[red]Failed[/red]")
                         continue
                     
                     validation = table_analysis.get('validation', {})
-                    quality_score = validation.get('data_quality_score', 0)
+                    table_score = validation.get('data_quality_score', 0)
                     
-                    score_emoji = "🟢" if quality_score >= 80 else "🟡" if quality_score >= 60 else "🔴"
-                    result += f"- **{table_name}**: {score_emoji} {quality_score:.1f}%\n"
+                    if table_score >= 80:
+                        status = "[green]Good[/green]"
+                    elif table_score >= 60:
+                        status = "[yellow]Fair[/yellow]"
+                    else:
+                        status = "[red]Poor[/red]"
                     
-                    # Show key metrics
-                    profile = table_analysis.get('profile', {})
-                    if profile and 'error' not in profile:
-                        result += f"  - Rows: {profile.get('row_count', 0):,}\n"
-                        result += f"  - Columns: {profile.get('column_count', 0)}\n"
-                    
-                    # Show specific issues for this table
-                    failed_expectations = validation.get('failed_expectations', [])
-                    if failed_expectations:
-                        result += f"  - Issues: {len(failed_expectations)}\n"
-                    
-                    result += "\n"
+                    quality_table.add_row(table_name, f"{table_score:.1f}%", status)
+                
+                console.print(quality_table)
             
-            return result
+            return ""
             
         except Exception as e:
             self.logger.error(f"Failed to analyze data quality: {e}")
-            return f"❌ Error analyzing data quality: {e}"
+            console.print(f"[red]Error analyzing data quality: {e}[/red]")
+            return ""
     
     def _basic_data_quality_analysis(self) -> str:
         """Perform basic data quality analysis using SQLAlchemy only.
@@ -327,15 +370,18 @@ class SchemaAnalyzer:
         """
         try:
             if not self.sql_available:
-                return "❌ SQLAlchemy not available - data quality analysis disabled"
+                console.print("[red]SQLAlchemy not available - data quality analysis disabled[/red]")
+                return ""
             
             tables = self.sql_inspector.get_tables()
-            result = "🔍 **Data Quality Analysis** (Basic Mode)\n\n"
             
             # Overall statistics
             total_tables = len(tables)
             total_issues = 0
             table_results = []
+            
+            # Progress indication
+            console.print(f"[dim]Analyzing {total_tables} tables...[/dim]")
             
             for table_name in tables:
                 try:
@@ -392,46 +438,95 @@ class SchemaAnalyzer:
             else:
                 overall_score = 0
             
-            # Format results
-            score_emoji = "🟢" if overall_score >= 80 else "🟡" if overall_score >= 60 else "🔴"
-            result += f"**{score_emoji} Overall Quality Score: {overall_score:.1f}%**\n\n"
+            # Display results using Rich
+            if overall_score >= 80:
+                score_color = "green"
+                status = "Good"
+            elif overall_score >= 60:
+                score_color = "yellow"
+                status = "Fair"
+            else:
+                score_color = "red"
+                status = "Poor"
             
-            result += f"📊 **Summary:**\n"
-            result += f"- Tables analyzed: {total_tables}\n"
+            title_panel = Panel(
+                f"[bold {score_color}]Data Quality (Basic): {overall_score:.1f}% ({status})[/bold {score_color}]",
+                style=score_color
+            )
+            console.print(title_panel)
+            
+            console.print(f"Tables analyzed: [cyan]{total_tables}[/cyan]")
             
             if total_issues > 0:
-                result += f"- Total issues found: {total_issues}\n\n"
+                console.print(f"Total issues found: [red]{total_issues}[/red]")
             else:
-                result += "- No issues found! 🎉\n\n"
+                console.print("Total issues found: [green]0[/green] ✨")
             
             # Table-by-table results
-            result += "📋 **Quality by Table:**\n"
-            for table_result in table_results:
-                if 'error' in table_result:
-                    result += f"- **{table_result['name']}**: ❌ Analysis failed\n"
-                    continue
+            if table_results:
+                console.print(f"\n[bold magenta]Quality by Table:[/bold magenta]")
                 
-                quality_score = table_result['quality_score']
-                score_emoji = "🟢" if quality_score >= 80 else "🟡" if quality_score >= 60 else "🔴"
+                quality_table = Table()
+                quality_table.add_column("Table", style="cyan")
+                quality_table.add_column("Rows", justify="right", style="dim")
+                quality_table.add_column("Columns", justify="right", style="dim")
+                quality_table.add_column("Quality Score", justify="right")
+                quality_table.add_column("Issues", justify="right")
+                quality_table.add_column("Status", justify="center")
                 
-                result += f"- **{table_result['name']}**: {score_emoji} {quality_score:.1f}%\n"
-                result += f"  - Rows: {table_result['row_count']:,}\n"
-                result += f"  - Columns: {table_result['column_count']}\n"
+                for table_result in table_results:
+                    if 'error' in table_result:
+                        quality_table.add_row(
+                            table_result['name'], 
+                            "—", "—", "—", "—", 
+                            "[red]Failed[/red]"
+                        )
+                        continue
+                    
+                    quality_score = table_result['quality_score']
+                    issue_count = len(table_result.get('issues', []))
+                    
+                    if quality_score >= 80:
+                        status = "[green]Good[/green]"
+                    elif quality_score >= 60:
+                        status = "[yellow]Fair[/yellow]"
+                    else:
+                        status = "[red]Poor[/red]"
+                    
+                    quality_table.add_row(
+                        table_result['name'],
+                        f"{table_result['row_count']:,}",
+                        str(table_result['column_count']),
+                        f"{quality_score:.1f}%",
+                        str(issue_count),
+                        status
+                    )
                 
-                if table_result['issues']:
-                    result += f"  - Issues: {len(table_result['issues'])}\n"
-                    for issue in table_result['issues'][:3]:  # Show first 3 issues
-                        result += f"    • {issue}\n"
-                    if len(table_result['issues']) > 3:
-                        result += f"    • ... and {len(table_result['issues']) - 3} more\n"
+                console.print(quality_table)
                 
-                result += "\n"
+                # Show some sample issues if any
+                if total_issues > 0:
+                    console.print(f"\n[bold red]Sample Issues:[/bold red]")
+                    issue_count = 0
+                    for table_result in table_results:
+                        if 'issues' in table_result and table_result['issues']:
+                            for issue in table_result['issues'][:2]:  # Show max 2 per table
+                                console.print(f"  • {table_result['name']}: {issue}")
+                                issue_count += 1
+                                if issue_count >= 5:  # Show max 5 total
+                                    break
+                        if issue_count >= 5:
+                            break
+                    
+                    if total_issues > 5:
+                        console.print(f"  ... and {total_issues - 5} more issues")
             
-            return result
+            return ""
             
         except Exception as e:
             self.logger.error(f"Failed to perform basic data quality analysis: {e}")
-            return f"❌ Error in basic data quality analysis: {e}"
+            console.print(f"[red]Error in basic data quality analysis: {e}[/red]")
+            return ""
     
     # ===== Column Analysis Operations =====
     
@@ -446,10 +541,12 @@ class SchemaAnalyzer:
         """
         try:
             if not self.sql_available:
-                return f"❌ SQLAlchemy not available - cannot search columns for '{search_term}'"
+                console.print(f"[red]SQLAlchemy not available - cannot search columns for '{search_term}'[/red]")
+                return ""
             
             if not search_term.strip():
-                return "❌ Please provide a search term"
+                console.print("[red]Please provide a search term[/red]")
+                return ""
             
             tables = self.sql_inspector.get_tables()
             matches = []
@@ -467,30 +564,34 @@ class SchemaAnalyzer:
                         })
             
             if not matches:
-                return f"🔍 No columns found containing '{search_term}'"
+                console.print(f"[yellow]No columns found containing '{search_term}'[/yellow]")
+                return ""
             
-            result = f"🔍 **Columns containing '{search_term}' ({len(matches)} found):**\n\n"
+            # Display results in a nice table
+            search_table = Table(title=f"Search Results for '{search_term}' ({len(matches)} found)")
+            search_table.add_column("Table", style="cyan")
+            search_table.add_column("Column", style="bright_cyan")
+            search_table.add_column("Type", style="yellow")
+            search_table.add_column("Nullable", justify="center", style="dim")
             
-            # Group by table
-            tables_with_matches = {}
             for match in matches:
-                table = match['table']
-                if table not in tables_with_matches:
-                    tables_with_matches[table] = []
-                tables_with_matches[table].append(match)
+                nullable = "✓" if match['nullable'] else "✗"
+                search_table.add_row(
+                    match['table'], 
+                    match['column'], 
+                    str(match['type']), 
+                    nullable
+                )
             
-            for table, table_matches in tables_with_matches.items():
-                result += f"**📋 {table}:**\n"
-                for match in table_matches:
-                    nullable_str = " (nullable)" if match['nullable'] else " (not null)"
-                    result += f"  - {match['column']} ({match['type']}){nullable_str}\n"
-                result += "\n"
+            console.print(search_table)
+            return ""
             
             return result
             
         except Exception as e:
             self.logger.error(f"Failed to search columns for '{search_term}': {e}")
-            return f"❌ Error searching columns: {e}"
+            console.print(f"[red]Error searching columns: {e}[/red]")
+            return ""
     
     def get_column_data_types(self, column_name: str) -> str:
         """Get data types for a column across all tables.
@@ -503,10 +604,12 @@ class SchemaAnalyzer:
         """
         try:
             if not self.sql_available:
-                return f"❌ SQLAlchemy not available - cannot analyze column '{column_name}'"
+                console.print(f"[red]SQLAlchemy not available - cannot analyze column '{column_name}'[/red]")
+                return ""
             
             if not column_name.strip():
-                return "❌ Please provide a column name"
+                console.print("[red]Please provide a column name[/red]")
+                return ""
             
             tables = self.sql_inspector.get_tables()
             column_info = []
@@ -527,9 +630,15 @@ class SchemaAnalyzer:
                         })
             
             if not column_info:
-                return f"🔍 Column '{column_name}' not found in any table"
+                console.print(f"[yellow]Column '{column_name}' not found in any table[/yellow]")
+                return ""
             
-            result = f"📊 **Column '{column_name}' Analysis ({len(column_info)} tables):**\n\n"
+            # Create title panel
+            title_panel = Panel(
+                f"[bold cyan]Column '{column_name}' Analysis[/bold cyan]",
+                subtitle=f"[dim]Found in {len(column_info)} tables[/dim]"
+            )
+            console.print(title_panel)
             
             # Group by data type
             type_groups = {}
@@ -541,37 +650,68 @@ class SchemaAnalyzer:
             
             # Show type consistency
             if len(type_groups) == 1:
-                result += "✅ **Type Consistency: GOOD** - All tables use the same type\n\n"
+                console.print("[green]Type Consistency: GOOD[/green] - All tables use the same type\n")
             else:
-                result += f"⚠️ **Type Consistency: INCONSISTENT** - {len(type_groups)} different types found\n\n"
+                console.print(f"[yellow]Type Consistency: INCONSISTENT[/yellow] - {len(type_groups)} different types found\n")
             
-            # Detail by type
-            for col_type, infos in type_groups.items():
-                result += f"**Type: {col_type}** ({len(infos)} tables)\n"
+            # Create table for column details
+            column_table = Table()
+            column_table.add_column("Table", style="cyan")
+            column_table.add_column("Data Type", style="magenta")
+            column_table.add_column("Nullable", justify="center")
+            column_table.add_column("Primary Key", justify="center")
+            column_table.add_column("Default", style="dim")
+            column_table.add_column("Rows", justify="right", style="dim")
+            
+            for col_type, infos in sorted(type_groups.items()):
+                # Add a separator row for each type if multiple types
+                if len(type_groups) > 1:
+                    column_table.add_row(f"[bold]{col_type}[/bold]", "", "", "", "", "")
                 
                 for info in infos:
-                    result += f"  - **{info['table']}**"
+                    nullable = "Yes" if info['nullable'] else "No"
+                    pk = "Yes" if info['primary_key'] else "No"
+                    default = str(info['default']) if info['default'] is not None else "—"
                     
-                    details = []
-                    if info['primary_key']:
-                        details.append("🔑 Primary Key")
-                    if not info['nullable']:
-                        details.append("🚫 Not Null")
-                    if info['default'] is not None:
-                        details.append(f"Default: {info['default']}")
+                    # Style the important columns
+                    nullable_style = "dim" if nullable == "Yes" else "green"
+                    pk_style = "green" if pk == "Yes" else "dim"
                     
-                    if details:
-                        result += f" ({', '.join(details)})"
+                    if len(type_groups) == 1:
+                        table_name = info['table']
+                    else:
+                        table_name = f"  {info['table']}"  # Indent under type
                     
-                    result += f" - {info['table_rows']:,} rows\n"
-                
-                result += "\n"
+                    column_table.add_row(
+                        table_name,
+                        col_type if len(type_groups) == 1 else "",
+                        f"[{nullable_style}]{nullable}[/{nullable_style}]",
+                        f"[{pk_style}]{pk}[/{pk_style}]",
+                        default,
+                        f"{info['table_rows']:,}"
+                    )
             
-            return result
+            console.print(column_table)
+            
+            # Summary statistics
+            total_rows = sum(info['table_rows'] for info in column_info)
+            primary_keys = sum(1 for info in column_info if info['primary_key'])
+            nullable_count = sum(1 for info in column_info if info['nullable'])
+            
+            console.print(f"\n[dim]Summary: {len(column_info)} instances, {total_rows:,} total rows across all tables[/dim]")
+            
+            if primary_keys > 0:
+                console.print(f"[dim]Primary key in {primary_keys} table(s)[/dim]")
+            
+            if nullable_count > 0:
+                console.print(f"[dim]Nullable in {nullable_count} table(s)[/dim]")
+            
+            return ""
             
         except Exception as e:
             self.logger.error(f"Failed to analyze column '{column_name}': {e}")
-            return f"❌ Error analyzing column '{column_name}': {e}"
+            console.print(f"[red]Error analyzing column '{column_name}': {e}[/red]")
+            return ""
     
     # ===== Comparative Analysis Operations =====
     
@@ -583,12 +723,14 @@ class SchemaAnalyzer:
         """
         try:
             if not self.sql_available:
-                return "❌ SQLAlchemy not available - cannot find common columns"
+                console.print("[red]SQLAlchemy not available - cannot find common columns[/red]")
+                return ""
             
             tables = self.sql_inspector.get_tables()
             
             if len(tables) < 2:
-                return "📋 Need at least 2 tables to find common columns"
+                console.print("[yellow]Need at least 2 tables to find common columns[/yellow]")
+                return ""
             
             # Collect all columns with their tables
             column_tables = {}
@@ -614,9 +756,15 @@ class SchemaAnalyzer:
             }
             
             if not common_columns:
-                return "🔍 No columns found that appear in multiple tables"
+                console.print("[yellow]No columns found that appear in multiple tables[/yellow]")
+                return ""
             
-            result = f"🔗 **Common Columns ({len(common_columns)} found):**\n\n"
+            # Create title panel
+            title_panel = Panel(
+                f"[bold cyan]Common Columns[/bold cyan]",
+                subtitle=f"[dim]{len(common_columns)} columns found in multiple tables[/dim]"
+            )
+            console.print(title_panel)
             
             # Sort by number of occurrences (most common first)
             sorted_columns = sorted(
@@ -625,47 +773,96 @@ class SchemaAnalyzer:
                 reverse=True
             )
             
+            # Create table for common columns
+            common_table = Table()
+            common_table.add_column("Column", style="cyan")
+            common_table.add_column("Tables", justify="right", style="dim")
+            common_table.add_column("Type Consistency", justify="center")
+            common_table.add_column("Tables Found In", style="dim")
+            
+            inconsistent_types = []
+            potential_joins = []
+            
             for col_name, occurrences in sorted_columns:
-                result += f"**📊 {col_name}** (appears in {len(occurrences)} tables)\n"
-                
                 # Check type consistency
                 types = set(str(occ['type']) for occ in occurrences)
-                if len(types) == 1:
-                    result += f"  ✅ Type consistent: {list(types)[0]}\n"
+                type_consistent = len(types) == 1
+                
+                if type_consistent:
+                    consistency = "[green]Consistent[/green]"
+                    type_info = f"({list(types)[0]})"
                 else:
-                    result += f"  ⚠️ Type inconsistent: {', '.join(types)}\n"
+                    consistency = "[red]Inconsistent[/red]"
+                    type_info = f"({len(types)} types)"
+                    inconsistent_types.append(col_name)
                 
-                # List tables
-                result += "  📋 Found in:\n"
-                for occ in occurrences:
-                    nullable_str = " (nullable)" if occ['nullable'] else " (not null)"
-                    result += f"    - {occ['table']} ({occ['type']}){nullable_str}\n"
+                # Check if potential join column
+                if (len(occurrences) >= 2 and 
+                    col_name.lower() in ['id', 'user_id', 'customer_id', 'order_id']):
+                    potential_joins.append(col_name)
                 
-                result += "\n"
+                tables_list = ", ".join(occ['table'] for occ in occurrences[:3])
+                if len(occurrences) > 3:
+                    tables_list += f", +{len(occurrences)-3} more"
+                
+                common_table.add_row(
+                    col_name,
+                    str(len(occurrences)),
+                    f"{consistency} {type_info}",
+                    tables_list
+                )
+            
+            console.print(common_table)
+            
+            # Show detailed analysis for inconsistent types
+            if inconsistent_types:
+                console.print(f"\n[bold red]Type Inconsistencies:[/bold red]")
+                
+                detail_table = Table()
+                detail_table.add_column("Column", style="cyan")
+                detail_table.add_column("Table", style="yellow")
+                detail_table.add_column("Data Type", style="magenta")
+                detail_table.add_column("Nullable", justify="center")
+                
+                for col_name in inconsistent_types[:3]:  # Show first 3
+                    occurrences = common_columns[col_name]
+                    for i, occ in enumerate(occurrences):
+                        nullable = "Yes" if occ['nullable'] else "No"
+                        nullable_style = "dim" if nullable == "Yes" else "green"
+                        
+                        detail_table.add_row(
+                            col_name if i == 0 else "",
+                            occ['table'],
+                            str(occ['type']),
+                            f"[{nullable_style}]{nullable}[/{nullable_style}]"
+                        )
+                    
+                    if col_name != inconsistent_types[-1] and len(inconsistent_types) > 1:
+                        detail_table.add_row("", "", "", "")  # Separator
+                
+                console.print(detail_table)
             
             # Summary recommendations
-            result += "💡 **Recommendations:**\n"
-            inconsistent_types = [
-                name for name, occs in common_columns.items() 
-                if len(set(str(occ['type']) for occ in occs)) > 1
-            ]
+            console.print(f"\n[bold magenta]Recommendations:[/bold magenta]")
             
             if inconsistent_types:
-                result += f"- Consider standardizing types for: {', '.join(inconsistent_types[:3])}\n"
-            
-            potential_joins = [
-                name for name, occs in common_columns.items() 
-                if len(occs) >= 2 and name.lower() in ['id', 'user_id', 'customer_id']
-            ]
+                console.print(f"• Consider standardizing types for: [yellow]{', '.join(inconsistent_types[:3])}[/yellow]")
+                if len(inconsistent_types) > 3:
+                    console.print(f"  and {len(inconsistent_types)-3} more columns")
             
             if potential_joins:
-                result += f"- Potential join columns: {', '.join(potential_joins[:3])}\n"
+                console.print(f"• Potential join columns: [green]{', '.join(potential_joins[:3])}[/green]")
             
-            return result
+            high_frequency_cols = [name for name, occs in sorted_columns if len(occs) >= len(tables) * 0.7]
+            if high_frequency_cols:
+                console.print(f"• High-frequency columns (consider as schema standards): [cyan]{', '.join(high_frequency_cols[:3])}[/cyan]")
+            
+            return ""
             
         except Exception as e:
             self.logger.error(f"Failed to find common columns: {e}")
-            return f"❌ Error finding common columns: {e}"
+            console.print(f"[red]Error finding common columns: {e}[/red]")
+            return ""
     
     def detect_type_mismatches(self) -> str:
         """Detect columns with inconsistent types across tables.
@@ -675,12 +872,14 @@ class SchemaAnalyzer:
         """
         try:
             if not self.sql_available:
-                return "❌ SQLAlchemy not available - cannot detect type mismatches"
+                console.print("[red]SQLAlchemy not available - cannot detect type mismatches[/red]")
+                return ""
             
             tables = self.sql_inspector.get_tables()
             
             if len(tables) < 2:
-                return "📋 Need at least 2 tables to detect type mismatches"
+                console.print("[yellow]Need at least 2 tables to detect type mismatches[/yellow]")
+                return ""
             
             # Collect columns with same name across tables
             column_types = {}
@@ -707,39 +906,70 @@ class SchemaAnalyzer:
             }
             
             if not mismatches:
-                return "✅ No type mismatches found! All common columns have consistent types."
+                console.print("[green]No type mismatches found! All common columns have consistent types.[/green] ✨")
+                return ""
             
-            result = f"⚠️ **Type Mismatches Found ({len(mismatches)} columns):**\n\n"
+            # Create title panel
+            title_panel = Panel(
+                f"[bold red]Type Mismatches Found[/bold red]",
+                subtitle=f"[dim]{len(mismatches)} columns with inconsistent types[/dim]",
+                style="red"
+            )
+            console.print(title_panel)
+            
+            # Create table for mismatches
+            mismatch_table = Table()
+            mismatch_table.add_column("Column", style="cyan")
+            mismatch_table.add_column("Data Type", style="magenta")
+            mismatch_table.add_column("Tables Using This Type", style="dim")
+            
+            high_impact = []
             
             for col_name, type_tables in mismatches.items():
-                result += f"**🔄 Column: {col_name}**\n"
+                # Check if high impact column
+                if any(keyword in col_name.lower() for keyword in ['id', 'date', 'time', 'amount', 'price', 'count']):
+                    high_impact.append(col_name)
                 
-                for col_type, tables_with_type in type_tables.items():
+                # Add rows for each type variant
+                for i, (col_type, tables_with_type) in enumerate(type_tables.items()):
                     table_list = ', '.join(tables_with_type)
-                    result += f"  - **{col_type}**: {table_list}\n"
+                    
+                    # Show column name only on first row
+                    column_display = col_name if i == 0 else ""
+                    
+                    mismatch_table.add_row(
+                        column_display,
+                        col_type,
+                        table_list
+                    )
                 
-                result += "\n"
+                # Add separator between different columns
+                if col_name != list(mismatches.keys())[-1]:
+                    mismatch_table.add_row("", "", "")
             
-            # Provide recommendations
-            result += "💡 **Recommendations:**\n"
-            result += "- Review data loading processes for type consistency\n"
-            result += "- Consider explicit type casting during data import\n"
-            result += "- Standardize column types across related tables\n"
+            console.print(mismatch_table)
             
-            # Severity assessment
-            high_impact = [
-                name for name, types in mismatches.items() 
-                if any('id' in name.lower() or name.lower() in ['date', 'time', 'amount'] for name in [name])
-            ]
+            # Show recommendations
+            console.print(f"\n[bold magenta]Recommendations:[/bold magenta]")
+            console.print("• Review data loading processes for type consistency")
+            console.print("• Consider explicit type casting during data import")
+            console.print("• Standardize column types across related tables")
             
             if high_impact:
-                result += f"- ⚠️ High priority columns to fix: {', '.join(high_impact[:3])}\n"
+                console.print(f"• [red]High priority columns to fix:[/red] [yellow]{', '.join(high_impact[:3])}[/yellow]")
+                if len(high_impact) > 3:
+                    console.print(f"  and {len(high_impact)-3} more critical columns")
             
-            return result
+            # Statistics
+            total_variants = sum(len(types) for types in mismatches.values())
+            console.print(f"\n[dim]Summary: {len(mismatches)} columns with {total_variants} total type variants[/dim]")
+            
+            return ""
             
         except Exception as e:
             self.logger.error(f"Failed to detect type mismatches: {e}")
-            return f"❌ Error detecting type mismatches: {e}"
+            console.print(f"[red]Error detecting type mismatches: {e}[/red]")
+            return ""
     
     def compare_two_files(self, file1: str, file2: str) -> str:
         """Compare schemas between two tables.
@@ -753,18 +983,22 @@ class SchemaAnalyzer:
         """
         try:
             if not self.sql_available:
-                return f"❌ SQLAlchemy not available - cannot compare '{file1}' and '{file2}'"
+                console.print(f"[red]SQLAlchemy not available - cannot compare '{file1}' and '{file2}'[/red]")
+                return ""
             
             if not file1.strip() or not file2.strip():
-                return "❌ Please provide both table names"
+                console.print("[red]Please provide both table names[/red]")
+                return ""
             
             tables = self.sql_inspector.get_tables()
             
             if file1 not in tables:
-                return f"❌ Table '{file1}' not found"
+                console.print(f"[red]Table '{file1}' not found[/red]")
+                return ""
             
             if file2 not in tables:
-                return f"❌ Table '{file2}' not found"
+                console.print(f"[red]Table '{file2}' not found[/red]")
+                return ""
             
             # Get schemas for both tables
             columns1 = self.sql_inspector.get_columns(file1)
@@ -772,12 +1006,31 @@ class SchemaAnalyzer:
             stats1 = self.sql_inspector.get_table_stats(file1)
             stats2 = self.sql_inspector.get_table_stats(file2)
             
-            result = f"🔄 **Schema Comparison: {file1} vs {file2}**\n\n"
+            # Create title panel
+            title_panel = Panel(
+                f"[bold cyan]Schema Comparison[/bold cyan]",
+                subtitle=f"[dim]{file1} vs {file2}[/dim]"
+            )
+            console.print(title_panel)
             
             # Basic statistics comparison
-            result += "**📊 Basic Statistics:**\n"
-            result += f"- **{file1}**: {stats1.get('row_count', 0):,} rows, {len(columns1)} columns\n"
-            result += f"- **{file2}**: {stats2.get('row_count', 0):,} rows, {len(columns2)} columns\n\n"
+            stats_table = Table()
+            stats_table.add_column("Table", style="cyan")
+            stats_table.add_column("Rows", justify="right", style="green")
+            stats_table.add_column("Columns", justify="right", style="magenta")
+            
+            stats_table.add_row(
+                file1,
+                f"{stats1.get('row_count', 0):,}",
+                str(len(columns1))
+            )
+            stats_table.add_row(
+                file2,
+                f"{stats2.get('row_count', 0):,}",
+                str(len(columns2))
+            )
+            
+            console.print(stats_table)
             
             # Column comparison
             cols1_dict = {col['name']: col for col in columns1}
@@ -788,15 +1041,21 @@ class SchemaAnalyzer:
             only_in_1 = set(cols1_dict.keys()) - set(cols2_dict.keys())
             only_in_2 = set(cols2_dict.keys()) - set(cols1_dict.keys())
             
-            # Summary
-            result += "**📋 Column Summary:**\n"
-            result += f"- Common columns: {len(common_columns)}\n"
-            result += f"- Only in {file1}: {len(only_in_1)}\n"
-            result += f"- Only in {file2}: {len(only_in_2)}\n\n"
+            # Column summary
+            console.print(f"\n[bold magenta]Column Summary:[/bold magenta]")
+            console.print(f"Common columns: [green]{len(common_columns)}[/green]")
+            console.print(f"Only in {file1}: [yellow]{len(only_in_1)}[/yellow]")
+            console.print(f"Only in {file2}: [blue]{len(only_in_2)}[/blue]")
             
             # Common columns analysis
             if common_columns:
-                result += f"**✅ Common Columns ({len(common_columns)}):**\n"
+                console.print(f"\n[bold green]Common Columns ({len(common_columns)}):[/bold green]")
+                
+                common_table = Table()
+                common_table.add_column("Column", style="cyan")
+                common_table.add_column(f"{file1} Type", style="magenta")
+                common_table.add_column(f"{file2} Type", style="magenta")
+                common_table.add_column("Match", justify="center")
                 
                 type_matches = 0
                 for col_name in sorted(common_columns):
@@ -807,52 +1066,68 @@ class SchemaAnalyzer:
                     type2 = str(col2['type'])
                     
                     if type1 == type2:
-                        result += f"  ✅ **{col_name}**: {type1}\n"
+                        match_status = "[green]Yes[/green]"
                         type_matches += 1
                     else:
-                        result += f"  ⚠️ **{col_name}**: {type1} vs {type2}\n"
+                        match_status = "[red]No[/red]"
+                    
+                    common_table.add_row(col_name, type1, type2, match_status)
                 
-                result += f"\n  📊 Type consistency: {type_matches}/{len(common_columns)} columns match\n\n"
+                console.print(common_table)
+                console.print(f"[dim]Type consistency: {type_matches}/{len(common_columns)} columns match[/dim]")
             
             # Unique columns
             if only_in_1:
-                result += f"**🔵 Only in {file1} ({len(only_in_1)}):**\n"
+                console.print(f"\n[bold yellow]Only in {file1} ({len(only_in_1)}):[/bold yellow]")
+                
+                unique1_table = Table()
+                unique1_table.add_column("Column", style="cyan")
+                unique1_table.add_column("Type", style="magenta")
+                
                 for col_name in sorted(only_in_1):
                     col = cols1_dict[col_name]
-                    result += f"  - {col_name} ({col['type']})\n"
-                result += "\n"
+                    unique1_table.add_row(col_name, str(col['type']))
+                
+                console.print(unique1_table)
             
             if only_in_2:
-                result += f"**🟡 Only in {file2} ({len(only_in_2)}):**\n"
+                console.print(f"\n[bold blue]Only in {file2} ({len(only_in_2)}):[/bold blue]")
+                
+                unique2_table = Table()
+                unique2_table.add_column("Column", style="cyan")
+                unique2_table.add_column("Type", style="magenta")
+                
                 for col_name in sorted(only_in_2):
                     col = cols2_dict[col_name]
-                    result += f"  - {col_name} ({col['type']})\n"
-                result += "\n"
+                    unique2_table.add_row(col_name, str(col['type']))
+                
+                console.print(unique2_table)
             
             # Compatibility assessment
-            result += "**🎯 Compatibility Assessment:**\n"
+            console.print(f"\n[bold magenta]Compatibility Assessment:[/bold magenta]")
             
             if len(common_columns) == 0:
-                result += "❌ No common columns - tables are completely different\n"
+                console.print("[red]No common columns - tables are completely different[/red]")
             elif len(common_columns) == len(all_columns):
                 if type_matches == len(common_columns):
-                    result += "✅ Schemas are identical\n"
+                    console.print("[green]Schemas are identical[/green] ✨")
                 else:
-                    result += "⚠️ Same columns but some type differences\n"
+                    console.print("[yellow]Same columns but some type differences[/yellow]")
             else:
                 compatibility = len(common_columns) / len(all_columns) * 100
                 if compatibility >= 80:
-                    result += f"✅ High compatibility ({compatibility:.1f}%)\n"
+                    console.print(f"[green]High compatibility ({compatibility:.1f}%)[/green]")
                 elif compatibility >= 50:
-                    result += f"⚠️ Moderate compatibility ({compatibility:.1f}%)\n"
+                    console.print(f"[yellow]Moderate compatibility ({compatibility:.1f}%)[/yellow]")
                 else:
-                    result += f"❌ Low compatibility ({compatibility:.1f}%)\n"
+                    console.print(f"[red]Low compatibility ({compatibility:.1f}%)[/red]")
             
-            return result
+            return ""
             
         except Exception as e:
             self.logger.error(f"Failed to compare '{file1}' and '{file2}': {e}")
-            return f"❌ Error comparing tables: {e}"
+            console.print(f"[red]Error comparing tables: {e}[/red]")
+            return ""
     
     # ===== Status and Utility Methods =====
     

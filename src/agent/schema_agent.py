@@ -5,15 +5,7 @@ import logging
 import requests
 from typing import Dict, List, Optional, Any
 from enum import Enum
-import os
-import sys
 
-# Ensure src is in Python path for consistent imports
-src_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-if src_dir not in sys.path:
-    sys.path.insert(0, src_dir)
-
-# Always use absolute imports from src
 from utils.logger import get_logger
 from analysis.schema_analyzer import SchemaAnalyzer, create_schema_analyzer
 
