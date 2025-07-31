@@ -7,7 +7,7 @@ from pathlib import Path
 from ..metadata.metadata_store import MetadataStore
 from ..metadata.schema_extractor import SchemaExtractor
 from ..tools.schema_tools import SchemaTools
-from ..agent.llm_agent import LLMAgent
+from ..agent.schema_agent import SchemaAgent
 
 
 class ChatInterface:
@@ -25,13 +25,12 @@ class ChatInterface:
         )
         self.schema_tools = SchemaTools(self.metadata_store)
         
-        # Initialize LLM agent
+        # Initialize Schema agent
         try:
-            self.agent = LLMAgent(
+            self.agent = SchemaAgent(
                 schema_tools=self.schema_tools,
                 model_name=config['llm']['model'],
-                base_url=config['llm']['base_url'],
-                strategy_type=config['llm'].get('strategy_type')  # Allow explicit strategy selection
+                base_url=config['llm']['base_url']
             )
             
             # Get status to display the right message
@@ -96,10 +95,8 @@ class ChatInterface:
                 return
             self._scan_directory(parts[1])
         elif cmd == '/strategy':
-            if len(parts) < 2:
-                self._show_strategies()
-            else:
-                self._switch_strategy(parts[1])
+            # Remove strategy switching - SchemaAgent auto-detects
+            self._show_agent_info()
         else:
             print(f"Unknown command: {cmd}")
             print("Use /help for available commands")
@@ -145,55 +142,38 @@ class ChatInterface:
         if self.agent:
             status = self.agent.get_status()
             print("📊 System Status:")
-            print(f"   Strategy: {status.get('strategy_name', 'Unknown')} ({status.get('strategy_type', 'Unknown')})")
+            print(f"   Agent: {status.get('agent_type', 'Unknown')} ({status.get('mode', 'Unknown')})")
             print(f"   LLM Available: {'✅' if status['llm_available'] else '❌'}")
             print(f"   Function Calling: {'✅' if status.get('function_calling') else '❌'}")
-            if status['llm_available']:
+            if status['llm_available'] or status.get('function_calling'):
                 print(f"   Model: {status['model_name']}")
                 print(f"   URL: {status['base_url']}")
         
         files = self.metadata_store.list_all_files()
         print(f"   Files Scanned: {len(files)}")
     
-    def _show_strategies(self):
-        """Show available strategies."""
+    def _show_agent_info(self):
+        """Show current agent information."""
         if not self.agent:
             print("Agent not available")
             return
             
-        strategies = self.agent.get_available_strategies()
-        current_status = self.agent.get_status()
-        current_type = current_status.get('strategy_type', 'unknown')
-        
-        print("📋 Available Strategies:")
-        for strategy_type, info in strategies.items():
-            current_marker = " (current)" if strategy_type == current_type else ""
-            print(f"   {strategy_type}{current_marker}: {info['name']}")
-            print(f"      {info['description']}")
-            print(f"      Performance: {info['performance']} | Recommended: {'✅' if info.get('recommended') else '❌'}")
-            if 'use_case' in info:
-                print(f"      Use case: {info['use_case']}")
-        
-        print("\nSwitch with: /strategy <type>")
+        status = self.agent.get_status()
+        print("🤖 SchemaAgent Status:")
+        print(f"   Mode: {status.get('mode', 'Unknown')}")
+        print(f"   Model: {status['model_name']}")
+        print(f"   LLM Available: {'✅' if status['llm_available'] else '❌'}")
+        print(f"   Function Calling: {'✅' if status.get('function_calling') else '❌'}")
+        print(f"   Capabilities: {', '.join(status.get('capabilities', []))}")
+    
+    def _show_strategies(self):
+        """Show available strategies (deprecated - keeping for compatibility)."""
+        self._show_agent_info()
     
     def _switch_strategy(self, strategy_type):
-        """Switch to a different strategy."""
-        if not self.agent:
-            print("Agent not available")
-            return
-        
-        success = self.agent.switch_strategy(strategy_type)
-        if success:
-            status = self.agent.get_status()
-            print(f"✅ Switched to {status['strategy_name']}")
-            
-            # Show helpful info about the new strategy
-            if strategy_type == "function_calling":
-                print("🔧 Function Calling mode: Precise tool selection enabled!")
-            elif strategy_type == "structured_output":
-                print("📝 Structured Output mode: LLM-guided query parsing enabled!")
-        else:
-            print(f"❌ Failed to switch to {strategy_type}")
+        """Switch strategy (deprecated - SchemaAgent auto-detects)."""
+        print("⚠️  Strategy switching is no longer needed - SchemaAgent auto-detects capabilities!")
+        self._show_agent_info()
 
     def _show_help(self):
         """Show help message."""
@@ -201,8 +181,7 @@ class ChatInterface:
 TableTalk Commands:
   /scan <directory>  - Scan files for schema information
   /status            - Show system status
-  /strategy          - Show available strategies
-  /strategy <type>   - Switch to a different strategy (function_calling, structured_output)
+  /strategy          - Show agent information
   /help              - Show this help
   /exit              - Exit TableTalk
 

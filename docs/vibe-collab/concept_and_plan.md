@@ -31,13 +31,17 @@ A **schema-aware, conversational EDA system** running fully locally with intelli
                 └────────┬───────────┘
                          ↓
                 ┌────────────────────┐
-                │    LLM Agent       │  ← Orchestrates everything
+                │   SchemaAgent      │  ← Unified agent with auto-detection
                 └────────┬───────────┘
                          ↓
-                ┌────────────────────┐
-                │ Context Manager    │  ← LLM parsing + regex fallback
-                └────────┬───────────┘
-                         ↓
+         ┌───────────────────────────────────────┐
+         │    Auto-Capability Detection          │
+         └───────────┬───────────────────────────┘
+                     ↓
+    ┌────────────────────────────────────────────────────┐
+    │  Function Calling | Structured Output | Pattern    │  ← Three modes
+    └────────────────┬───────────────────────────────────┘
+                     ↓
               ┌────────────────────────┐
               │   Schema Tools         │  ← 8 specialized functions
               └────────┬───────────────┘
@@ -51,22 +55,26 @@ A **schema-aware, conversational EDA system** running fully locally with intelli
 
 ## 🧰 Component Details
 
-### 1. **Context Manager** (Intelligence Layer)
-**Dual-mode query processing:**
-- **LLM Mode**: Complex query parsing, multi-step planning, response synthesis
-- **Basic Mode**: Regex pattern matching for simple queries
+### 1. **SchemaAgent** (Unified Intelligence Layer)
+**Three-mode query processing with auto-detection:**
+- **Function Calling Mode**: Native Ollama function calling for phi4-mini-fc
+- **Structured Output Mode**: LangChain integration with JSON parsing for phi3/phi4
+- **Pattern Matching Mode**: Regex fallback for basic functionality
 
 ```python
-# Example LLM parsing
-"Find data quality issues and suggest fixes" → 
-{
-  "steps": [
-    {"tool": "detect_type_mismatches"},
-    {"tool": "detect_semantic_type_issues"}, 
-    {"tool": "detect_column_name_variations"}
-  ],
-  "synthesis": "Combine findings with recommendations"
-}
+# Auto-detection at initialization
+class SchemaAgent:
+    def __init__(self, metadata_store, model_name="phi3"):
+        self.supports_function_calling = self._detect_function_calling()
+        self.llm = self._init_llm() if not self.supports_function_calling else None
+    
+    def query(self, user_query: str) -> str:
+        if self.supports_function_calling:
+            return self._process_with_function_calling(user_query)
+        elif self.llm:
+            return self._process_with_structured_output(user_query)
+        else:
+            return self._process_with_patterns(user_query)
 ```
 
 ### 2. **Schema Tools** (8 Functions)
@@ -103,22 +111,33 @@ CREATE TABLE schema_info (
 
 ## 🔄 Query Processing Examples
 
-### Simple Queries (Basic Mode)
+### Pattern Matching Mode (Fallback)
 ```
 Input: "What files do we have?"
-Processing: Regex → list_files() → Response
+Processing: Pattern Detection → list_files() → Response
 Output: "📁 Found 5 files: orders.csv (8 columns)..."
 ```
 
-### Complex Queries (LLM Mode)
+### Function Calling Mode (phi4-mini-fc)
 ```
 Input: "Find data quality issues and suggest fixes"
-Processing: LLM Parse → Multi-tool execution → Synthesis
-Steps:
+Processing: Native Ollama → Auto tool selection → Response
+Tools Called:
 1. detect_type_mismatches() → "user_id: int64 vs string"
-2. detect_semantic_type_issues() → "amount stored as text"
+2. detect_semantic_type_issues() → "amount stored as text"  
 3. detect_column_name_variations() → "cust_id vs customer_id"
-Output: Synthesized insights + actionable recommendations
+Output: Comprehensive analysis with actionable recommendations
+```
+
+### Structured Output Mode (phi3/phi4)
+```
+Input: "Compare schemas between orders and customers"
+Processing: LangChain parsing → JSON extraction → Tool execution
+Steps:
+1. get_file_schema("orders.csv")
+2. get_file_schema("customers.csv")
+3. find_common_columns()
+Output: Side-by-side comparison with shared/unique columns
 ```
 
 ---
@@ -149,11 +168,12 @@ Output: Synthesized insights + actionable recommendations
 - [x] Help system and documentation
 - [x] Testing and refinement
 
-### Phase 5: Simplification ✅
-- [x] Consolidated architecture (removed "enhanced" complexity)
-- [x] Single context manager with dual-mode operation
-- [x] Streamlined codebase (~40% reduction)
-- [x] Clean documentation
+### Phase 5: Architecture Consolidation ✅
+- [x] Eliminated strategy pattern complexity (5 strategy files → 1 unified agent)
+- [x] SchemaAgent with auto-capability detection
+- [x] Reduced codebase by ~75% (1200+ lines → ~300 lines)
+- [x] Simplified imports and dependencies
+- [x] Documentation cleanup and organization
 
 ---
 
@@ -255,13 +275,14 @@ Output: Synthesized insights + actionable recommendations
 **TableTalk is fully implemented and functional!**
 
 ### ✅ Completed Features
-- Intelligent query understanding (LLM + fallback)
+- Unified SchemaAgent with auto-capability detection
+- Three processing modes: function calling, structured output, pattern matching
 - 8 comprehensive schema analysis tools
-- Multi-step analysis with response synthesis
+- Auto-mode selection based on model capabilities
 - Clean CLI interface with status monitoring
 - Local-first processing with Ollama integration
 - Comprehensive error handling and graceful degradation
-- Simplified, maintainable architecture
+- Simplified, maintainable architecture (~75% code reduction)
 
 ### 🧪 Ready for Testing
 ```bash
