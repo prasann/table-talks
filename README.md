@@ -100,5 +100,3 @@ table-talk/
 - **Source Code**: Implementation in [src/](src/)
 
 ---
-
-**Looking for something specific?** Check the quick start instructions below or browse the documentation links above.

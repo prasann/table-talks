@@ -16,7 +16,7 @@ TableTalk is a conversational EDA assistant for exploring data schemas using loc
 - **Python 3.11+**: Primary language with type hints
 - **DuckDB**: Embedded analytics database for metadata storage
 - **LangChain + Ollama**: Local LLM integration
-- **Phi-3**: Microsoft's efficient reasoning model
+- **Phi-4**: Microsoft's efficient reasoning model
 - **Pandas**: Data processing and CSV/Parquet parsing
 
 ---
@@ -324,46 +324,3 @@ def tool_function(parameter: str) -> str:
 ```
 
 ---
-
-##  Performance
-
-- **Query Response**: 1-3 seconds typical
-- **File Scanning**: ~1 second per MB  
-- **Memory Usage**: ~100MB base + file data
-- **Database**: Sub-second metadata queries with DuckDB indexes
-
-##  Current Status
-
-### ✅ Implemented  
-- **Unified SchemaAgent architecture** with auto-capability detection
-- **Function calling mode** for phi4-mini-fc with native Ollama integration
-- **Structured output mode** for phi3/phi4 with LangChain + fallback parsing
-- **Pattern matching fallback** for basic functionality without LLM
-- **Auto-detection system** for model capability-based mode selection
-- **8 schema analysis tools** with intelligent mode-based selection
-- **Enhanced error handling** with proper dictionary return formats
-- **Robust parameter validation** and graceful fallback logic
-- **Local Phi-3/Phi-4 integration** via Ollama with dual model support
-- **Clean CLI** with commands and natural language
-- **DuckDB metadata storage** with CSV/Parquet support
-
-### 🎯 Benefits
-- **Simplicity**: Single SchemaAgent, ~300 lines vs 1200+ strategy system
-- **Flexibility**: Three processing modes with automatic capability detection
-- **Consistency**: Unified query() interface regardless of model type
-- **Performance**: Native function calling dramatically faster for supported models
-- **Privacy**: Complete local processing with multiple model options
-- **User Experience**: Natural language with intelligent tool selection
-- **Maintainability**: Consolidated codebase with clear architecture
-
-### 🚀 Recent Improvements
-- **Consolidated strategy pattern** into unified SchemaAgent approach
-- **Eliminated complex factory system** in favor of direct auto-detection
-- **Reduced codebase size** by ~75% while maintaining all functionality
-- **Simplified imports and dependencies** with cleaner module structure
-- **Enhanced logging** for debugging function calls and mode selection
-- **Improved tool descriptions** for better model understanding
-
----
-
-*This document reflects the current simplified architecture of TableTalk focused on core design decisions and implementation details.*
