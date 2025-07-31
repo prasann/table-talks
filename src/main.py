@@ -83,7 +83,7 @@ def check_ollama_connection(base_url: str) -> bool:
             print("✅ Phi-4 function calling model found!")
         elif phi_available:
             print("⚠️  Phi model found but no function calling support.")
-            print("   Run ./setup_phi4_function_calling.sh for better performance")
+            print("   Run ./scripts/setup_phi4_function_calling.sh for better performance")
         else:
             print("⚠️  Warning: No Phi model found. Basic mode only.")
             print("   Consider running: ollama pull phi3:mini")

@@ -1,6 +1,8 @@
-# 📁 Vibe-Collab Directory
+# 📁 Technical Documentation
 
-This directory contains the conceptual and technical documentation for TableTalk.
+This directory contains the conceptual and technical documentation for TableTalk's architecture and design decisions.
+
+> **Note**: This directory was previously named `vibe-collab` and has been moved to `docs/vibe-collab/` as part of the documentation reorganization.
 
 ## 📄 Files
 
