@@ -1,20 +1,15 @@
 #!/usr/bin/env python3
 """
-Simple End-to-End Test for TableTalk
+End-to-End Tests for TableTalk
 
-Tests:
-1. Application sanity (can it start and handle basic operations)
-2. Natural language queries with actual LLM (iterates through test queries)
+Simple, focused tests to ensure core functionality works.
+Run with: python scripts/run_tests.py
 """
 
+import pytest
 import sys
-import time
 from pathlib import Path
-
-# Add src to path for imports
-sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
-
-from main import run_tabletalk_commands
+from typing import List, Tuple
 
 # Test queries to validate LLM functionality
 TEST_QUERIES = [
@@ -28,187 +23,152 @@ TEST_QUERIES = [
     "what data types are in customers file"
 ]
 
-def run_tabletalk_with_input(commands, timeout=30):
-    """Run TableTalk with given input commands using direct function calls."""
-    try:
-        results = run_tabletalk_commands(commands)
-        
-        # Convert results to simulate subprocess-like output
-        stdout_lines = []
-        stderr_lines = []
-        returncode = 0
-        
-        for command, response, success in results:
-            stdout_lines.append(f"TableTalk> {command}")
-            if success:
-                stdout_lines.append(response)
-            else:
-                stderr_lines.append(response)
-                returncode = 1
-        
-        stdout = "\n".join(stdout_lines)
-        stderr = "\n".join(stderr_lines)
-        
-        return stdout, stderr, returncode
-        
-    except Exception as e:
-        return "", str(e), -1
+# Expected response validation rules
+EXPECTED_RESPONSES = {
+    "what files do we have": {
+        "should_contain": ["scanned files", "customers.csv", "orders.csv", "reviews.csv", "legacy_users.csv"],
+        "should_not_contain": ["error", "failed"],
+        "min_length": 100,
+    },
+    "show me the customers schema": {
+        "should_contain": ["customers.csv", "customer_id", "email", "first_name", "last_name", "is_active"],
+        "should_not_contain": ["error", "not found"],
+        "min_length": 150,
+    },
+    "describe the orders file": {
+        "should_contain": ["orders.csv", "customer_id", "order_id", "price", "product_name"],
+        "should_not_contain": ["error", "not found"],
+        "min_length": 150,
+    },
+    "find data quality issues": {
+        "should_contain": ["type mismatches", "legacy_users.csv", "is_active", "price"],
+        "should_not_contain": ["no issues found"],
+        "min_length": 200,
+    },
+    "detect type mismatches": {
+        "should_contain": ["type mismatches found", "is_active", "price"],
+        "should_not_contain": ["no mismatches"],
+        "min_length": 150,
+    },
+    "which files have customer_id": {
+        "should_contain": ["customer_id", "customers.csv", "legacy_users.csv", "orders.csv"],
+        "should_not_contain": ["not found", "no files"],
+        "min_length": 100,
+    },
+    "compare schemas across files": {
+        "should_contain": ["common columns", "customer_id", "type mismatch"],
+        "should_not_contain": ["no common columns"],
+        "min_length": 300,
+    },
+    "what data types are in customers file": {
+        "should_contain": ["customers.csv", "customer_id", "email", "(integer)", "(string)"],
+        "should_not_contain": ["error", "not found"],
+        "min_length": 150,
+    },
+}
 
-def test_application_startup():
-    """Test that the application can start and respond to basic commands."""
-    print("🚀 Testing Application Startup...")
-    
-    stdout, stderr, returncode = run_tabletalk_with_input(["/help"], timeout=10)
-    
-    if "TableTalk" in stdout and returncode == 0:
-        print("✅ Application startup successful")
-        return True
-    else:
-        print("❌ Application startup failed")
-        if stderr:
-            print(f"   Error: {stderr[:100]}")
-        return False
 
-def test_file_scanning():
-    """Test file scanning functionality."""
-    print("\n📁 Testing File Scanning...")
+@pytest.fixture(scope="session")
+def tabletalk_runner():
+    """Set up TableTalk for testing."""
+    from main import run_tabletalk_commands
     
-    data_dir = Path(__file__).parent.parent / "data" / "sample"
+    def _run_commands(commands: List[str]) -> List[Tuple[str, str, bool]]:
+        try:
+            return run_tabletalk_commands(commands)
+        except Exception as e:
+            return [("error", str(e), False)]
     
-    commands = [f"/scan {data_dir}", "/status"]
-    
-    stdout, stderr, returncode = run_tabletalk_with_input(commands, timeout=15)
-    
-    if "files" in stdout.lower() and returncode == 0:
-        print("✅ File scanning successful")
-        # Count files mentioned in output
-        file_count = stdout.lower().count(".csv")
-        print(f"   Found references to {file_count} CSV files")
-        return True
-    else:
-        print("❌ File scanning failed")
-        if stderr:
-            print(f"   Error: {stderr[:100]}")
-        print(f"   Output: {stdout[:200]}")
-        return False
+    return _run_commands
 
-def test_natural_language_queries():
-    """Test natural language queries with actual LLM."""
-    print("\n🤖 Testing Natural Language Queries...")
-    print(f"📝 Running {len(TEST_QUERIES)} test queries")
-    
-    data_dir = Path(__file__).parent.parent / "data" / "sample"
-    successful = 0
-    failed = 0
-    
-    for i, query in enumerate(TEST_QUERIES, 1):
-        print(f"\n🔬 Query {i}/{len(TEST_QUERIES)}: \"{query}\"")
-        
-        # Each query gets fresh scan + query
-        commands = [f"/scan {data_dir}", query]
-        
-        stdout, stderr, returncode = run_tabletalk_with_input(commands, timeout=30)
-        
-        # Check if we got a meaningful response
-        if stdout and len(stdout) > 100 and returncode == 0:
-            print("✅ SUCCESS")
-            
-            # Try to extract the response part (look for the query response)
-            lines = stdout.split('\n')
-            response_lines = []
-            
-            # Find lines after the query command
-            query_found = False
-            for line in lines:
-                if query.lower() in line.lower() and "TableTalk>" in line:
-                    query_found = True
-                    continue
-                elif query_found and line.strip() and not line.startswith("TableTalk>"):
-                    response_lines.append(line.strip())
-                elif query_found and line.startswith("TableTalk>"):
-                    break
-            response = " ".join(response_lines[:2])  # First couple lines
-            print("*******")
-            print(response_lines)
-            print("*******")
-            if response:
-                print(f"📋 Response: {response[:120]}{'...' if len(response) > 120 else ''}")
-            else:
-                print("📋 Response: (generated successfully)")
-                
-            successful += 1
-        else:
-            print("❌ FAILED")
-            if stderr:
-                print(f"💥 Error: {stderr[:80]}")
-            else:
-                print("💥 No substantial response generated")
-                print(f"💥 Output length: {len(stdout) if stdout else 0}")
-            failed += 1
-        
-        # Small delay between queries
-        time.sleep(0.5)
-    
-    return successful, failed
 
-def main():
-    """Run all tests."""
-    print("🧪 TableTalk End-to-End Test Suite")
-    print("=" * 50)
-    
-    # Check sample data exists
+@pytest.fixture(scope="session")
+def sample_data_dir():
+    """Sample data directory fixture."""
     data_dir = Path(__file__).parent.parent / "data" / "sample"
     if not data_dir.exists():
-        print(f"❌ Sample data directory not found: {data_dir}")
-        return
+        pytest.skip(f"Sample data directory not found: {data_dir}")
+    return str(data_dir)
+
+
+def validate_response(query: str, response: str) -> Tuple[bool, str]:
+    """Validate response against expected patterns."""
+    if query not in EXPECTED_RESPONSES:
+        return True, "No validation rules"
     
-    print(f"📁 Using sample data: {data_dir}")
+    expected = EXPECTED_RESPONSES[query]
     
-    # Test 1: Basic application functionality
-    startup_ok = test_application_startup()
+    # Check minimum length
+    if len(response) < expected["min_length"]:
+        return False, f"Response too short: {len(response)} < {expected['min_length']}"
     
-    # Test 2: File scanning
-    scanning_ok = test_file_scanning()
+    # Check required content
+    response_lower = response.lower()
+    for required in expected["should_contain"]:
+        if required.lower() not in response_lower:
+            return False, f"Missing: '{required}'"
     
-    # Test 3: Natural language queries (main test)
-    if startup_ok and scanning_ok:
-        successful_queries, failed_queries = test_natural_language_queries()
-    else:
-        print("\n⚠️ Skipping query tests due to startup/scanning failures")
-        successful_queries = failed_queries = 0
+    # Check forbidden content
+    for forbidden in expected["should_not_contain"]:
+        if forbidden.lower() in response_lower:
+            return False, f"Contains forbidden: '{forbidden}'"
     
-    # Final summary
-    print("\n" + "=" * 50)
-    print("📊 TEST SUMMARY")
-    print("=" * 50)
+    return True, "Valid"
+
+
+class TestTableTalkBasics:
+    """Test basic TableTalk functionality."""
     
-    print(f"🏗️ Infrastructure:")
-    print(f"   Application Startup: {'✅' if startup_ok else '❌'}")
-    print(f"   File Scanning: {'✅' if scanning_ok else '❌'}")
-    
-    total_queries = len(TEST_QUERIES)
-    if total_queries > 0:
-        success_rate = (successful_queries / total_queries) * 100
-        print(f"\n🤖 Natural Language Queries:")
-        print(f"   Successful: {successful_queries}/{total_queries}")
-        print(f"   Failed: {failed_queries}/{total_queries}")
-        print(f"   Success Rate: {success_rate:.1f}%")
+    def test_application_startup(self, tabletalk_runner):
+        """Test application startup."""
+        results = tabletalk_runner(["/help"])
+        assert len(results) > 0, "No results returned"
         
-        print(f"\n🎯 Overall Assessment:")
-        if startup_ok and scanning_ok and success_rate >= 70:
-            print("   🎉 EXCELLENT - TableTalk working well!")
-        elif startup_ok and scanning_ok and success_rate >= 50:
-            print("   ✅ GOOD - Most functionality working")
-        elif startup_ok and scanning_ok:
-            print("   ⚠️ FAIR - Infrastructure OK, some query issues")
-        else:
-            print("   ❌ NEEDS ATTENTION - Basic functionality issues")
+        command, response, success = results[0]
+        assert success, f"Help command failed: {response}"
+        assert "TableTalk" in response or "help" in response.lower()
     
-    print(f"\n💡 Notes:")
-    print(f"   • Tests use direct function calls with real LLM integration")
-    print(f"   • Each query runs independently with fresh file scan")
-    print(f"   • Focus is on getting responses, not exact content")
-    print(f"   • Run 'python -m src.main' manually for debugging")
+    def test_file_scanning(self, tabletalk_runner, sample_data_dir):
+        """Test file scanning."""
+        commands = [f"/scan {sample_data_dir}", "/status"]
+        results = tabletalk_runner(commands)
+        
+        assert len(results) >= 2, "Expected scan + status results"
+        
+        # Check scan
+        scan_command, scan_response, scan_success = results[0]
+        assert scan_success, f"Scan failed: {scan_response}"
+        
+        # Check status
+        status_command, status_response, status_success = results[1]
+        assert status_success, f"Status failed: {status_response}"
+        assert "files" in status_response.lower()
+
+
+class TestTableTalkQueries:
+    """Test natural language queries."""
+    
+    @pytest.mark.parametrize("query", TEST_QUERIES)
+    def test_query(self, tabletalk_runner, sample_data_dir, query):
+        """Test individual queries."""
+        commands = [f"/scan {sample_data_dir}", query]
+        results = tabletalk_runner(commands)
+        
+        assert len(results) >= 2, f"Expected scan + query results for: {query}"
+        
+        # Check scan worked
+        scan_command, scan_response, scan_success = results[0]
+        assert scan_success, f"Scan failed for '{query}': {scan_response}"
+        
+        # Check query worked
+        query_command, query_response, query_success = results[1]
+        assert query_success, f"Query '{query}' failed: {query_response}"
+        assert len(query_response) > 50, f"Response too short for '{query}'"
+        
+        # Validate response content
+        is_valid, validation_message = validate_response(query, query_response)
+        assert is_valid, f"Response validation failed for '{query}': {validation_message}"
+
 
 if __name__ == "__main__":
-    main()
+    pytest.main([__file__, "-v"])

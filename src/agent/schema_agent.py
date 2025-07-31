@@ -5,17 +5,17 @@ import logging
 import requests
 from typing import Dict, List, Optional, Any
 from enum import Enum
+import os
+import sys
 
-try:
-    from ..utils.logger import get_logger
-    from ..tools.schema_tools import SchemaTools
-except ImportError:
-    # Fallback for direct execution
-    import sys
-    import os
-    sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    from utils.logger import get_logger
-    from tools.schema_tools import SchemaTools
+# Ensure src is in Python path for consistent imports
+src_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if src_dir not in sys.path:
+    sys.path.insert(0, src_dir)
+
+# Always use absolute imports from src
+from utils.logger import get_logger
+from tools.schema_tools import SchemaTools
 
 
 class ProcessingMode(Enum):
@@ -119,7 +119,16 @@ class SchemaAgent:
         try:
             payload = {
                 "model": self.model_name,
-                "messages": [{"role": "user", "content": query}],
+                "messages": [
+                    {
+                        "role": "system", 
+                        "content": "You are a data schema analysis assistant. Use the provided functions to analyze database schemas and answer questions about data files, columns, types, and quality issues. Choose the most appropriate function based on the user's question."
+                    },
+                    {
+                        "role": "user", 
+                        "content": query
+                    }
+                ],
                 "tools": tools,
                 "stream": False
             }
@@ -129,7 +138,20 @@ class SchemaAgent:
             
             if response.status_code == 200:
                 response_data = response.json()
-                self.logger.debug(f"Function calling response received: {response_data.get('message', {}).get('tool_calls', 'No tool calls')}")
+                self.logger.debug(f"Function calling API response: {response_data}")
+                
+                # Debug: Show what the LLM decided to do
+                message = response_data.get("message", {})
+                if message.get("tool_calls"):
+                    tool_calls = message.get("tool_calls", [])
+                    self.logger.debug(f"LLM decided to call {len(tool_calls)} functions:")
+                    for i, tool_call in enumerate(tool_calls):
+                        func_name = tool_call.get("function", {}).get("name", "unknown")
+                        func_args = tool_call.get("function", {}).get("arguments", {})
+                        self.logger.debug(f"  Function {i+1}: {func_name}({func_args})")
+                else:
+                    self.logger.debug(f"LLM chose not to call any functions. Direct response: {message.get('content', 'No content')[:200]}...")
+                
                 return self._execute_function_calls(response_data, query)
             else:
                 self.logger.error(f"Function calling API error: {response.status_code} - {response.text}")
@@ -227,7 +249,7 @@ If no specific tool fits, respond with {{"tool": "list_files", "parameters": {{}
                 for word in words:
                     if len(word) > 2 and word not in ["columns", "column", "have", "with", "find"]:
                         self.logger.debug(f"Extracted column name: {word}")
-                        return self.schema_tools.find_columns_by_name(word)
+                        return self.schema_tools.find_columns_with_name(word)
                 return "Please specify a column name to search for"
             
             elif any(word in query_lower for word in ["type", "mismatch", "inconsistent"]):
@@ -240,7 +262,7 @@ If no specific tool fits, respond with {{"tool": "list_files", "parameters": {{}
             
             elif any(word in query_lower for word in ["summary", "overview", "statistics"]):
                 self.logger.debug("Pattern matched: database summary")
-                return self.schema_tools.database_summary()
+                return self.schema_tools.get_database_summary()
             
             elif any(word in query_lower for word in ["quality", "issues", "problems"]):
                 self.logger.debug("Pattern matched: data quality analysis")
@@ -290,7 +312,7 @@ If no specific tool fits, respond with {{"tool": "list_files", "parameters": {{}
                 "type": "function", 
                 "function": {
                     "name": "list_files",
-                    "description": "List all available files in the database",
+                    "description": "List all available files in the database - use this when user asks 'what files do we have' or wants to see available files",
                     "parameters": {"type": "object", "properties": {}}
                 }
             },
@@ -315,7 +337,7 @@ If no specific tool fits, respond with {{"tool": "list_files", "parameters": {{}
                 "type": "function",
                 "function": {
                     "name": "detect_type_mismatches", 
-                    "description": "Find columns with the same name but different data types across files",
+                    "description": "Find data type discrepancies and inconsistencies across tables - use this for detecting type mismatches, discrepancies, or inconsistent data types between files",
                     "parameters": {"type": "object", "properties": {}}
                 }
             },
@@ -339,7 +361,7 @@ If no specific tool fits, respond with {{"tool": "list_files", "parameters": {{}
                 "type": "function",
                 "function": {
                     "name": "detect_semantic_type_issues",
-                    "description": "Find potential semantic type issues (e.g., numeric data stored as text)",
+                    "description": "Find semantic type problems like numeric data stored as text, dates as strings, etc. - use for data quality analysis",
                     "parameters": {"type": "object", "properties": {}}
                 }
             },
@@ -380,13 +402,13 @@ If no specific tool fits, respond with {{"tool": "list_files", "parameters": {{}
                 elif function_name == "list_files":
                     result = self.schema_tools.list_all_files()
                 elif function_name == "find_columns":
-                    result = self.schema_tools.find_columns_by_name(arguments.get("column_name", ""))
+                    result = self.schema_tools.find_columns_with_name(arguments.get("column_name", ""))
                 elif function_name == "detect_type_mismatches":
                     result = self.schema_tools.detect_type_mismatches()
                 elif function_name == "find_common_columns":
                     result = self.schema_tools.find_common_columns()
                 elif function_name == "database_summary":
-                    result = self.schema_tools.database_summary()
+                    result = self.schema_tools.get_database_summary()
                 elif function_name == "detect_semantic_type_issues":
                     result = self.schema_tools.detect_semantic_type_issues()
                 elif function_name == "detect_column_name_variations":
@@ -419,13 +441,13 @@ If no specific tool fits, respond with {{"tool": "list_files", "parameters": {{}
             elif tool_name == "list_files":
                 result = self.schema_tools.list_all_files()
             elif tool_name == "find_columns":
-                result = self.schema_tools.find_columns_by_name(parameters.get("column_name", ""))
+                result = self.schema_tools.find_columns_with_name(parameters.get("column_name", ""))
             elif tool_name == "detect_type_mismatches":
                 result = self.schema_tools.detect_type_mismatches()
             elif tool_name == "find_common_columns":
                 result = self.schema_tools.find_common_columns()
             elif tool_name == "database_summary":
-                result = self.schema_tools.database_summary()
+                result = self.schema_tools.get_database_summary()
             elif tool_name == "detect_semantic_type_issues":
                 result = self.schema_tools.detect_semantic_type_issues()
             elif tool_name == "detect_column_name_variations":
@@ -458,7 +480,7 @@ If no specific tool fits, respond with {{"tool": "list_files", "parameters": {{}
             'mode': self.mode.value,
             'model_name': self.model_name,
             'base_url': self.base_url,
-            'structured_llm_available': self.structured_llm is not None,
+            'llm_available': self.structured_llm is not None, 
             'function_calling': self.supports_function_calling,
             'capabilities': capabilities
         }

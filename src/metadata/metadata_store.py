@@ -5,15 +5,16 @@ from typing import List, Dict, Optional, Any
 import duckdb
 import logging
 from datetime import datetime
+import os
+import sys
 
-try:
-    from ..utils.logger import get_logger
-except ImportError:
-    # Fallback for direct execution
-    import sys
-    import os
-    sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    from utils.logger import get_logger
+# Ensure src is in Python path for consistent imports
+src_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if src_dir not in sys.path:
+    sys.path.insert(0, src_dir)
+
+# Always use absolute imports from src
+from utils.logger import get_logger
 
 
 class MetadataStore:

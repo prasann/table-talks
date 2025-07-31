@@ -32,6 +32,21 @@ Advanced setup script for optimal function calling performance with Phi-4 models
 
 **Recommended:** Use this script for the best TableTalk experience.
 
+## 🧪 Testing Scripts
+
+### `run_tests.py`
+Simple test runner for end-to-end functionality tests.
+
+**Usage:**
+```bash
+python scripts/run_tests.py
+```
+
+**What it does:**
+- Runs all TableTalk end-to-end tests
+- Validates core functionality works
+- Tests natural language queries with real LLM
+
 ## 🔧 Usage
 
 All scripts should be run from the project root directory:
@@ -40,6 +55,7 @@ All scripts should be run from the project root directory:
 # From project root
 ./scripts/setup.sh
 ./scripts/setup_phi4_function_calling.sh
+python scripts/run_tests.py
 ```
 
 ## 📋 Prerequisites

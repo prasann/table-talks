@@ -4,10 +4,16 @@ import os
 import sys
 from pathlib import Path
 
-from ..metadata.metadata_store import MetadataStore
-from ..metadata.schema_extractor import SchemaExtractor
-from ..tools.schema_tools import SchemaTools
-from ..agent.schema_agent import SchemaAgent
+# Ensure src is in Python path for consistent imports
+src_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if src_dir not in sys.path:
+    sys.path.insert(0, src_dir)
+
+# Always use absolute imports from src
+from metadata.metadata_store import MetadataStore
+from metadata.schema_extractor import SchemaExtractor
+from tools.schema_tools import SchemaTools
+from agent.schema_agent import SchemaAgent
 
 
 class ChatInterface:

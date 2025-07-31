@@ -26,5 +26,5 @@ cli:
 
 # Logging
 logging:
-  level: "INFO"
+  level: "DEBUG"
   file: "./logs/tabletalk.log"

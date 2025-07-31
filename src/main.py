@@ -11,17 +11,14 @@ from pathlib import Path
 warnings.filterwarnings("ignore", category=DeprecationWarning, module="langchain")
 warnings.filterwarnings("ignore", message=".*deprecated.*", category=DeprecationWarning)
 
-# Add src directory to Python path
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+# Ensure src is in Python path for consistent imports
+src_dir = os.path.dirname(os.path.abspath(__file__))
+if src_dir not in sys.path:
+    sys.path.insert(0, src_dir)
 
-# Handle both direct execution and module execution
-try:
-    from .cli.chat_interface import ChatInterface
-    from .utils.logger import setup_logger
-except ImportError:
-    # Fallback for direct execution
-    from cli.chat_interface import ChatInterface
-    from utils.logger import setup_logger
+# Always use absolute imports from src
+from cli.chat_interface import ChatInterface
+from utils.logger import setup_logger
 
 
 def load_config() -> dict:
