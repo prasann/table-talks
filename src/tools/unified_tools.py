@@ -347,6 +347,10 @@ class DetectInconsistenciesTool(BaseTool):
     def execute(self, check_type: str = "data_types") -> str:
         """Detect data inconsistencies."""
         try:
+            # Handle case where LLM passes a list instead of string
+            if isinstance(check_type, list):
+                check_type = check_type[0] if check_type else "data_types"
+            
             checker = ConsistencyChecker(self.store)
             results = checker.analyze(check_type)
             

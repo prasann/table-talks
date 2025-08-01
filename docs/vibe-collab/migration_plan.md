@@ -377,65 +377,34 @@ pip install pandas tabulate
 - Smoke test procedures
 ```
 
-### **Phase 4: Cleanup & Fix Tests**
-**Duration**: 1 day  
-**Goal**: Remove old tools, fix tests, optimize performance
+### **Phase 4: Cleanup & Fix Tests** ✅ **COMPLETED**
+**Duration**: ✅ **Completed in ~1 hour** (August 1, 2025)  
+**Goal**: ✅ Remove old tools, fix tests, optimize performance
 
-#### Step 4.1: Remove Old Tool Classes
-- Delete `src/tools/atomic_schema_tools.py`
-- Delete `src/tools/composite_schema_tools.py`
-- Delete `src/tools/schema_tools.py`
-- Clean up imports throughout codebase
+#### Step 4.1: Remove Old Tool Classes ✅
+- [x] Delete `src/tools/atomic_schema_tools.py`
+- [x] Delete `src/tools/composite_schema_tools.py` 
+- [x] Delete `src/tools/schema_tools.py`
+- [x] Clean up imports throughout codebase
 
-#### Step 4.2: Add Optional Dependencies
-```python
-# Update venv with new optional dependencies
-# Activate environment: source venv/bin/activate (Linux/Mac) or venv\Scripts\activate (Windows)
-# Add to requirements.txt or install directly:
+#### Step 4.2: Add Optional Dependencies ✅
+- [x] Update requirements.txt (remove LangChain, keep pandas/tabulate optional)
+- [x] Test pandas integration in tools
+- [x] Verify graceful fallback when pandas unavailable
 
-pip install pandas        # For complex data analysis operations
-pip install tabulate      # For better table formatting
+#### Step 4.3: Fix Tests & Documentation ✅
+- [x] Update test_end_to_end.py to work with new tools
+- [x] Fix tool parameter handling issues (detect_inconsistencies list vs string)
+- [x] Fix SchemaAgent.get_status() method (add llm_available field)
+- [x] Update test expectations for new tool outputs
+- [x] Improve test robustness for function calling differences
 
-# Remove LangChain dependencies from venv:
-pip uninstall langchain langchain_community langchain_experimental
-
-# Core dependencies remain:
-# - requests (for Ollama API)
-# - duckdb (for metadata store)  
-# - pytest (for testing)
-
-# Use pandas when available, fallback to current logic
-class RelationshipAnalyzer:
-    def find_similar_schemas(self) -> List[Dict]:
-        if HAS_PANDAS:
-            return self._find_similar_schemas_pandas()
-        else:
-            return self._find_similar_schemas_basic()
-```
-
-#### Step 4.3: Fix Tests & Documentation
-```python
-# Now that code is working, fix the test suite
-# 1. Update test_end_to_end.py to work with new tools
-# 2. Fix failing tests one by one
-# 3. Add new tests for edge cases if needed
-# 4. Ensure: python scripts/run_tests.py passes
-
-# Update EXPECTED_RESPONSES to work with new tools:
-EXPECTED_RESPONSES = {
-    "what files do we have": {           # → get_files()
-        "should_contain": ["scanned files", "customers.csv", "orders.csv"],
-        "should_not_contain": ["error", "failed"],
-        "min_length": 100,
-    },
-    "show me the customers schema": {    # → get_schemas("customers")  
-        "should_contain": ["customers.csv", "customer_id", "email"],
-        "should_not_contain": ["error", "not found"],
-        "min_length": 150,
-    },
-    # ... update all test expectations
-}
-```
+**Results:**
+- ✅ Old tool files completely removed and imports cleaned
+- ✅ Dependencies simplified (4 core packages, optional pandas/tabulate)
+- ✅ Test issues resolved (status command, parameter types, expectations)
+- ✅ Architecture significantly cleaner and more maintainable
+- ✅ All core functionality preserved and enhanced
 
 #### Step 4.4: **📚 Complete Migration Documentation**
 ```markdown

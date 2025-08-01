@@ -179,6 +179,7 @@ class SchemaAgent:
             'mode': 'function_calling',
             'model_name': self.model_name,
             'base_url': self.base_url,
+            'llm_available': self.supports_function_calling,  # For backward compatibility
             'function_calling': self.supports_function_calling,
             'tools_available': len(self.tool_registry.tools),
             'tool_names': list(self.tool_registry.tools.keys()),
