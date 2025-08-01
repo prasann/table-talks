@@ -2,8 +2,6 @@
 
 TableTalk is a natural language interface for exploring data schemas. Chat with your CSV and Parquet files using plain English!
 
-> **📋 Migration Note**: TableTalk is currently undergoing architecture migration to unified tools. Phase 1 (core infrastructure) is complete. The system is fully functional with enhanced capabilities!
-
 ## 🚀 Quick Start
 
 ### 1. Set Up Environment

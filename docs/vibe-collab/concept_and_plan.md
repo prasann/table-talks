@@ -31,21 +31,17 @@ A **schema-aware, conversational EDA system** running fully locally with intelli
                 └────────┬───────────┘
                          ↓
                 ┌────────────────────┐
-                │   SchemaAgent      │  ← Unified agent with auto-detection
+                │   SchemaAgent      │  ← Unified agent with function calling
                 └────────┬───────────┘
                          ↓
          ┌───────────────────────────────────────┐
-         │    Auto-Capability Detection          │
+         │         ToolRegistry                  │  ← Single source of truth
          └───────────┬───────────────────────────┘
                      ↓
     ┌────────────────────────────────────────────────────┐
-    │  Function Calling | Structured Output | Pattern    │  ← Three modes
-    └────────────────┬───────────────────────────────────┘
-                     ↓
-              ┌────────────────────────┐
-              │   Schema Tools         │  ← 8 specialized functions
-              └────────┬───────────────┘
-                       ↓
+    │  8 Unified Tools with Strategy Components          │  ← Clean architecture
+    └────────┬───────────────────────────────────────────┘
+             ↓
          ┌──────────────────────────────┐
          │ Metadata Store (DuckDB)      │  ← schema_info table
          └──────────────────────────────┘
@@ -55,37 +51,32 @@ A **schema-aware, conversational EDA system** running fully locally with intelli
 
 ## 🧰 Component Details
 
-### 1. **SchemaAgent** (Unified Intelligence Layer)
-**Three-mode query processing with auto-detection:**
-- **Function Calling Mode**: Native Ollama function calling for phi4-mini-fc
-- **Structured Output Mode**: LangChain integration with JSON parsing for phi3/phi4
-- **Pattern Matching Mode**: Regex fallback for basic functionality
+### 1. **SchemaAgent** (Simplified Intelligence Layer)
+**Function calling only with ToolRegistry integration:**
+- **Function Calling Mode**: Native Ollama function calling with phi4-mini-fc
+- **Automatic Tool Selection**: ToolRegistry provides function schemas
+- **Clean Architecture**: No LangChain dependencies, direct tool execution
 
 ```python
-# Auto-detection at initialization
+# Simplified agent with ToolRegistry
 class SchemaAgent:
-    def __init__(self, metadata_store, model_name="phi3"):
+    def __init__(self, metadata_store, model_name="phi4-mini-fc"):
+        self.tool_registry = ToolRegistry(metadata_store)
         self.supports_function_calling = self._detect_function_calling()
-        self.llm = self._init_llm() if not self.supports_function_calling else None
     
     def query(self, user_query: str) -> str:
-        if self.supports_function_calling:
-            return self._process_with_function_calling(user_query)
-        elif self.llm:
-            return self._process_with_structured_output(user_query)
-        else:
-            return self._process_with_patterns(user_query)
+        return self._process_with_function_calling(user_query)
 ```
 
-### 2. **Schema Tools** (8 Functions)
-- `get_file_schema(file_name)` - Detailed schema for specific file
-- `list_files()` - All scanned files with statistics
-- `find_columns(column_name)` - Files containing specific columns
-- `detect_type_mismatches()` - Same column, different types
-- `find_common_columns()` - Shared columns across files
-- `database_summary()` - Overall statistics
-- `detect_semantic_type_issues()` - Type vs naming mismatches
-- `detect_column_name_variations()` - Similar names, different conventions
+### 2. **Schema Tools** (8 Unified Tools)
+- `get_files(pattern=None)` - List files with optional filtering
+- `get_schemas(file_pattern=None, detailed=True)` - Schema info for files  
+- `search_metadata(search_term, search_type="column")` - Universal search across metadata
+- `get_statistics(scope="database", target=None)` - Stats at various levels
+- `find_relationships(analysis_type="common_columns", threshold=2)` - Find relationships between files/columns
+- `detect_inconsistencies(check_type="data_types")` - Find data inconsistencies
+- `compare_items(item1, item2, comparison_type="schemas")` - Compare files, columns, etc.
+- `run_analysis(description)` - Handle complex analysis requests
 
 ### 3. **Metadata Store** (DuckDB)
 ```sql
@@ -101,42 +92,40 @@ CREATE TABLE schema_info (
 );
 ```
 
-### 4. **LLM Integration** (Ollama + Phi-3)
+### 4. **LLM Integration** (Ollama + Phi-4)
 - Local model serving via Ollama
-- LangChain integration for tool orchestration
-- Intelligent query understanding and response synthesis
+- Native function calling (no LangChain dependency)
+- Direct tool registry integration
 - Context-aware follow-up suggestions
 
 ---
 
 ## 🔄 Query Processing Examples
 
-### Pattern Matching Mode (Fallback)
+### Function Calling Mode (phi4-mini-fc) - Primary Mode
 ```
 Input: "What files do we have?"
-Processing: Pattern Detection → list_files() → Response
-Output: "📁 Found 5 files: orders.csv (8 columns)..."
+Processing: ToolRegistry → get_files() → Formatted Response
+Output: "📁 Found 4 files: customers.csv (6 columns)..."
 ```
 
-### Function Calling Mode (phi4-mini-fc)
+### Complex Multi-Tool Analysis
 ```
 Input: "Find data quality issues and suggest fixes"
 Processing: Native Ollama → Auto tool selection → Response
 Tools Called:
-1. detect_type_mismatches() → "user_id: int64 vs string"
-2. detect_semantic_type_issues() → "amount stored as text"  
-3. detect_column_name_variations() → "cust_id vs customer_id"
-Output: Comprehensive analysis with actionable recommendations
+1. detect_inconsistencies(check_type="data_types") → "is_active: boolean vs string"
+2. find_relationships(analysis_type="common_columns") → "customer_id in 3 files"
+3. run_analysis(description="data quality summary") → Comprehensive recommendations
+Output: Detailed analysis with actionable recommendations
 ```
 
-### Structured Output Mode (phi3/phi4)
+### Schema Comparison
 ```
 Input: "Compare schemas between orders and customers"
-Processing: LangChain parsing → JSON extraction → Tool execution
-Steps:
-1. get_file_schema("orders.csv")
-2. get_file_schema("customers.csv")
-3. find_common_columns()
+Processing: ToolRegistry tool selection → Direct execution
+Tools Called:
+1. compare_items(item1="customers.csv", item2="orders.csv", comparison_type="schemas")
 Output: Side-by-side comparison with shared/unique columns
 ```
 
@@ -160,10 +149,10 @@ Output: Side-by-side comparison with shared/unique columns
 - **Privacy**: All processing happens locally
 - **Cost control**: No external API calls
 - **Reliability**: Works offline
-- **Performance**: Fast local inference
+- **Performance**: Fast local inference with phi4-mini-fc
 
-### Graceful Degradation
-- **LLM optional**: Full functionality without Ollama
-- **Progressive enhancement**: Better experience with LLM
-- **Error resilience**: Continues working despite failures
-- **Clear status**: Users know current capabilities
+### Clean Architecture
+- **Single source of truth**: ToolRegistry eliminates duplication
+- **Strategy pattern**: Pluggable searchers, analyzers, formatters
+- **No complex fallbacks**: Function calling only
+- **Simplified dependencies**: Core packages only (no LangChain)

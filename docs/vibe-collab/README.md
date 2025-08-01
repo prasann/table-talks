@@ -7,27 +7,36 @@ This directory contains the conceptual and technical documentation for TableTalk
 ## 📄 Files
 
 ### 1. `concept_and_plan.md`
-**Purpose**: Explains the concept and contains implementation plans
+**Purpose**: High-level concept and strategic planning
 
 **Contents**:
 - Problem statement and vision
 - Core concept and goals  
-- Architecture overview
+- Architecture overview with unified tool system
 - Component details with examples
-- Implementation phases (all completed ✅)
 - Query processing examples
 - Success metrics and future extensions
 - Current status and impact
 
 ### 2. `design_document.md` 
-**Purpose**: Current technical design and architecture
+**Purpose**: Detailed technical design and implementation
 
 **Contents**:
-- Current simplified architecture (3 components)
+- Current unified architecture (ToolRegistry + Strategy Pattern)
 - Design philosophy and principles
 - Component details with code examples
 - Key design decisions and rationale
-- Data flow and processing intelligence
-- Database design and tool architecture
+- Function calling integration
+- Tool architecture and extensibility
 - Testing strategy and performance
-- Extension points and current status
+
+### 3. `migration_plan.md`
+**Purpose**: Complete migration documentation and lessons learned
+
+**Contents**:
+- Historical migration from 3-layer to unified tool architecture
+- 4-phase migration strategy and execution
+- Technical implementation patterns
+- Success metrics and achievements
+- Risk mitigation strategies
+- Post-migration benefits and outcomes

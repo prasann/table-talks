@@ -9,21 +9,21 @@ TableTalk is a conversational EDA assistant for exploring data schemas using loc
 ### Core Principles
 1. **Simplicity First**: Clean, maintainable code over complex abstractions
 2. **Local-First**: All processing happens locally for privacy and cost control
-3. **Pure LLM**: Single processing path using natural language understanding
-4. **Developer-Friendly**: Clear components with single responsibilities
+3. **Function Calling Only**: Single processing path using native Ollama function calling
+4. **Strategy Pattern**: Pluggable components for extensibility
 
 ### Technology Stack
 - **Python 3.11+**: Primary language with type hints
 - **DuckDB**: Embedded analytics database for metadata storage
-- **LangChain + Ollama**: Local LLM integration
-- **Phi-4**: Microsoft's efficient reasoning model
-- **Pandas**: Data processing and CSV/Parquet parsing
+- **Ollama**: Local LLM serving with native function calling
+- **Phi-4-mini-fc**: Microsoft's function calling enabled model
+- **Optional: Pandas/Tabulate**: Enhanced data processing and formatting
 
 ---
 
 ## 🏛️ Architecture Overview
 
-TableTalk has a clean 3-layer architecture with unified agent approach:
+TableTalk has a clean 4-layer architecture with unified tool registry:
 
 ```
 ┌─────────────────────────────────────────────────┐
@@ -35,25 +35,27 @@ TableTalk has a clean 3-layer architecture with unified agent approach:
                   │
 ┌─────────────────▼───────────────────────────────┐
 │               SchemaAgent                      │
-│         • Auto-capability detection            │
-│         • Unified query processing             │
-│         • Fallback chain handling              │
+│         • Function calling only                │
+│         • ToolRegistry integration             │
+│         • Simplified query processing          │
 └─────────────────┬───────────────────────────────┘
                   │
 ┌─────────────────▼───────────────────────────────┐
-│            Processing Modes                    │
-│  ┌──────────────┐ ┌─────────────┐ ┌──────────┐  │
-│  │Function      │ │Structured   │ │Pattern   │  │
-│  │Calling       │ │Output       │ │Matching  │  │
-│  │(phi4-mini-fc)│ │(phi3/phi4)  │ │(fallback)│  │
-│  └──────────────┘ └─────────────┘ └──────────┘  │
+│              ToolRegistry                      │
+│    • Single source of truth                   │
+│    • Auto-schema generation                   │
+│    • 8 unified tools                          │
+│    • Strategy pattern integration             │
 └─────────────────┬───────────────────────────────┘
                   │
 ┌─────────────────▼───────────────────────────────┐
-│             Schema Tools                       │
-│    • 8 analysis functions                     │
-│    • DuckDB metadata queries                  │
-│    • Formatted responses                      │
+│           Tool Components                      │
+│  ┌─────────────┐ ┌────────────┐ ┌─────────────┐ │
+│  │ Searchers   │ │ Analyzers  │ │ Formatters  │ │
+│  │ (Column,    │ │ (Relations,│ │ (Text,      │ │
+│  │  File,      │ │  Consist.) │ │  Table)     │ │
+│  │  Type)      │ │            │ │             │ │
+│  └─────────────┘ └────────────┘ └─────────────┘ │
 └─────────────────┬───────────────────────────────┘
                   │
 ┌─────────────────▼───────────────────────────────┐
@@ -68,87 +70,101 @@ TableTalk has a clean 3-layer architecture with unified agent approach:
 
 ## 🧩 Core Components
 
-### 1. SchemaAgent - Unified Query Processing
+### 1. SchemaAgent - Simplified Query Processing
 
-Single agent with auto-capability detection and fallback chain:
+Single agent with ToolRegistry integration and function calling only:
 
 ```python
 class SchemaAgent:
-    def __init__(self, schema_tools, model_name, base_url):
-        """Initialize with auto-capability detection"""
+    def __init__(self, metadata_store, model_name="phi4-mini-fc", base_url="http://localhost:11434"):
+        """Initialize with ToolRegistry integration"""
+        self.tool_registry = ToolRegistry(metadata_store)
+        self.model_name = model_name
+        self.base_url = base_url
         self.supports_function_calling = self._detect_function_calling()
-        self.llm = self._init_llm() if not self.supports_function_calling else None
     
     def query(self, user_query: str) -> str:
-        """Process query using best available method"""
-        if self.supports_function_calling:
-            return self._process_with_function_calling(user_query)
-        elif self.llm:
-            return self._process_with_structured_output(user_query)
-        else:
-            return self._process_with_patterns(user_query)
+        """Process query using function calling only"""
+        return self._process_with_function_calling(user_query)
 ```
 
-#### Function Calling Mode (phi4-mini-fc)
-- **Native Ollama function calling**: Direct API calls with tool definitions
-- **Auto-tool selection**: Model chooses appropriate schema tool
-- **Robust validation**: Parameter checking and fallback logic
-- **Optimal performance**: Direct model-to-tool communication
+#### Function Calling Mode (phi4-mini-fc) - Only Mode
+- **Native Ollama function calling**: Direct API calls with tool definitions from ToolRegistry
+- **Auto-tool selection**: Model chooses appropriate tool from 8 unified options
+- **Robust validation**: Parameter checking and error handling
+- **Optimal performance**: Direct model-to-tool communication via registry
 
-#### Structured Output Mode (phi3/phi4)  
-- **LangChain integration**: Structured prompting with JSON parsing
-- **Fallback support**: Multiple parsing methods for reliability
-- **Pattern extraction**: Regex fallbacks when structured parsing fails
+### 2. ToolRegistry - Single Source of Truth
 
-#### Pattern Matching Mode (fallback)
-- **Simple pattern matching**: Basic keyword detection
-- **No dependencies**: Works without LLM
-- **Essential functionality**: Core commands still work
-
-### 2. Auto-Capability Detection
+Central registry managing all 8 unified tools with auto-schema generation:
 
 ```python
-def _detect_function_calling(self) -> bool:
-    """Auto-detect if model supports native function calling"""
-    function_calling_indicators = ["phi4-mini-fc", "phi4-mini:fc", "phi4:fc"]
+class ToolRegistry:
+    def __init__(self, metadata_store):
+        self.store = metadata_store
+        self.tools = self._register_tools()
     
-    if self.model_name in function_calling_indicators:
-        return True
-        
-    if "phi4" in self.model_name.lower() and ("fc" in self.model_name.lower()):
-        return True
-        
-    return False
+    def _register_tools(self) -> Dict[str, BaseTool]:
+        """Register all 8 unified tools"""
+        return {
+            'get_files': GetFilesTool(self.store),
+            'get_schemas': GetSchemasTool(self.store),
+            'search_metadata': SearchMetadataTool(self.store),
+            'get_statistics': GetStatisticsTool(self.store),
+            'find_relationships': FindRelationshipsTool(self.store),
+            'detect_inconsistencies': DetectInconsistenciesTool(self.store),
+            'compare_items': CompareItemsTool(self.store),
+            'run_analysis': RunAnalysisTool(self.store)
+        }
+    
+    def get_ollama_function_schemas(self) -> List[Dict]:
+        """Auto-generate function calling schemas"""
+        # Returns schemas for all 8 tools
+    
+    def execute_tool(self, tool_name: str, **kwargs) -> str:
+        """Execute tool by name with parameters"""
+        return self.tools[tool_name].execute(**kwargs)
 ```
 
 **Benefits:**
-- **No manual switching**: Auto-detects best approach at startup
-- **Graceful degradation**: Falls back through capability chain
-- **Simplified architecture**: Single agent handles all model types
-- **Reduced complexity**: No factory pattern or strategy selection needed
-- **Clean unified interface**: Same query() method regardless of model
+- **Single source of truth**: No tool duplication
+- **Auto-schema generation**: Function calling schemas created automatically
+- **Clean integration**: SchemaAgent uses registry for all tool operations
+- **Easy extension**: Add new tools by extending BaseTool class
 
-### 3. SchemaAgent - Unified Implementation
+### 3. Strategy Pattern Components
+
+Pluggable components for extensible analysis:
 
 ```python
-class SchemaAgent:
-    def query(self, user_query: str) -> str:
-        """Process query using best available method"""
-        if self.supports_function_calling:
-            return self._process_with_function_calling(user_query)
-        elif self.llm:
-            return self._process_with_structured_output(user_query)
-        else:
-            return self._process_with_patterns(user_query)
+# Base classes for strategy pattern
+class BaseSearcher:
+    def search(self, term: str) -> List[Dict]: pass
+
+class BaseAnalyzer:  
+    def analyze(self, analysis_type: str) -> List[Dict]: pass
+
+class BaseFormatter:
+    def format(self, data: Any, context: Dict) -> str: pass
+
+# Concrete implementations
+class ColumnSearcher(BaseSearcher):
+    """Search for columns across files"""
+    
+class RelationshipAnalyzer(BaseAnalyzer):
+    """Find relationships between files/columns"""
+    
+class TextFormatter(BaseFormatter):
+    """Professional text formatting with emojis"""
 ```
 
-**Responsibilities:**
-- Auto-capability detection at initialization
-- Query processing with automatic fallbacks
-- Error handling and response formatting  
-- Direct integration with schema tools
+**Benefits:**
+- **Pluggable components**: Easy to add new search/analysis/formatting types
+- **Clean separation**: Search vs analysis vs formatting concerns
+- **Testable**: Each component can be unit tested independently
+- **Optional dependencies**: Graceful fallback when pandas/tabulate unavailable
 
-### 4. ChatInterface - CLI
+### 4. Interaction Flow
 
 ```python
 class ChatInterface:
@@ -159,115 +175,93 @@ class ChatInterface:
 **Features:**
 - Commands: `/scan`, `/help`, `/status`, `/exit`
 - Natural language query processing
-- Automatic mode detection (Function Calling/Structured Output/Pattern Matching)
-- Status indicators show detected capability
+- Function calling mode only (simplified)
+- Status indicators show 8 available tools
+
+#### Function Calling Flow
+
+1. **User Query**: "Find columns that appear in multiple files"
+2. **Model Selection**: Detect "phi4-mini-fc" → Function Calling Mode
+3. **Function Call**: Model calls `find_relationships(analysis_type="column_overlap")`
+4. **Tool Execution**: ToolRegistry executes with appropriate searcher/analyzer
+5. **Response**: Formatted results returned to user
+
+#### Error Handling Flow
+
+If model doesn't support function calling:
+1. **Detection**: Model name check fails
+2. **Error Response**: "Function calling model required (e.g., phi4-mini-fc)"
+3. **Graceful Exit**: No attempt to process query
 
 ---
 
 ## 🔧 Design Decisions
 
-### Unified Agent Architecture
-- **Simplified approach**: Single SchemaAgent replaces complex strategy pattern
-- **Auto-capability detection**: Automatically determines best approach for each model
-- **Graceful degradation**: Built-in fallback chain (function calling → structured output → pattern matching)
-- **Reduced complexity**: ~300 lines total vs previous 1200+ line strategy system
-- **Model-specific optimization**: Phi4-mini-fc native function calling, Phi3 structured prompting, pattern fallback
+### Unified Tool Architecture
+- **Simplified approach**: ToolRegistry replaces complex 3-layer tool system
+- **Single source of truth**: All tool definitions in one place
+- **Strategy pattern**: Pluggable searchers, analyzers, formatters for extensibility
+- **No duplication**: Function calling schemas auto-generated from tool classes
+- **Clean dependencies**: Core packages only (duckdb, requests, pyyaml, click)
 
-### Auto-Detection Implementation
-- **Zero configuration**: Automatically chooses best approach per model
-- **Unified interface**: Single query() method handles all model types
-- **Graceful fallback**: Function calling → structured output → pattern matching
+### Function Calling Only
+- **Native tool calling**: Direct Ollama API integration for phi4-mini-fc
+- **No LangChain**: Removed structured output complexity and dependencies  
+- **Performance**: Faster execution without LangChain overhead
+- **Reliability**: Direct model-to-tool communication via ToolRegistry
 
-### Function Calling First
-- **Native tool calling**: Direct Ollama API integration for supported models
-- **Intelligent selection**: Model chooses appropriate tool based on query
-- **Parameter validation**: Robust checking of tool parameters
-- **Enhanced logging**: Detailed debugging for function calls
+### Strategy Pattern Benefits
+- **Extensible**: Easy to add new search types, analysis types, output formats
+- **Testable**: Isolated components for unit testing
+- **Optional dependencies**: Graceful degradation when pandas/tabulate unavailable
 
-### Local-First Processing
-- **Privacy**: All data stays local
-- **Cost control**: No API calls to external services
-- **Fast inference**: Local Phi-3/4 models
-- **Always available**: No internet dependency
+### Technology Simplification
+- **Dependency reduction**: From 10+ packages to 4 core packages
+- **Removed complexity**: No LangChain chains, agents, or structured output modes
+- **Direct integration**: Ollama function calling API used directly
+- **Optional enhancements**: pandas/tabulate improve formatting but aren't required
+- **Clean separation**: Search vs analysis vs formatting concerns
 
 ### Tool-Based Design
-- **8 schema analysis tools**: Each with specific purpose
-- **Auto-capability selection**: Function calling or structured output based on model
-- **Extensible**: Easy to add new analysis functions
+- **8 unified tools**: Each with specific purpose and strategy components
+- **Function calling only**: Native Ollama integration with phi4-mini-fc
+- **Extensible**: Easy to add new analysis functions via strategy pattern
 
 ---
 
 ## 📊 Data Flow
 
-### Query Processing with Unified Agent
+### Query Processing with ToolRegistry
 ```
 Natural Language Query
     ↓
-SchemaAgent → Auto-detect Model Capabilities at Initialization
+SchemaAgent → Detect Function Calling Support (phi4-mini-fc)
     ↓
-    ┌─────────────────────────────────────────────────────────┐
-    │                                                         │
-    ▼                                     ▼                   ▼
-Function Calling Mode             Structured Output Mode  Pattern Mode
-(phi4-mini-fc)                    (phi3/phi4)            (fallback)
-    ↓                                 ↓                       ↓
-Native Ollama Function Calls      LangChain + JSON Parsing   Keyword Matching
-    ↓                                 ↓                       ↓
-Tool Selection & Validation       Pattern Extraction         Basic Commands
-    ↓                                 ↓                       ↓
-    └─────────────┬─────────────────────┘───────────────────────┘
-                  ↓                                           
-Execute Schema Tool & Format Response                                          
-```
-```
-Natural Language Query
+ToolRegistry → Generate Function Calling Schemas for 8 Tools
     ↓
-Strategy Factory → Auto-detect Model Capabilities  
+Native Ollama Function Calling → Tool Selection & Validation
     ↓
-    ┌─────────────────────────────────────────────────────────┐
-    │                                                         │
-    ▼                                     ▼                   │
-Function Calling Strategy          Structured Output Strategy │
-(phi4-mini-fc)                    (phi3)                     │
-    ↓                                 ↓                       │
-Native Ollama Function Calls      LangChain + JSON Parsing   │
-    ↓                                 ↓                       │
-Tool Selection & Validation       Pattern Extraction Fallback│
-    ↓                                 ↓                       │
-    └─────────────┬─────────────────────┘                     │
-                  ↓                                           │
-Execute Schema Tool & Format Response                                          
+Execute Selected Tool(s) via ToolRegistry → Strategy Components
+    ↓
+Format Response → Return to User
 ```
 
 ### Auto-Detection Examples
 ```
 Model: "phi4-mini-fc" → Function Calling Mode
-Model: "phi3"         → Structured Output Mode  
-Model: "any"          → Pattern Matching Mode (fallback)
+Model: any other     → Error (function calling required)
 ```
 
 ### Query Processing Examples
 
-#### Function Calling Mode
+#### Function Calling Mode (Primary)
 ```
-"compare schemas across files" → detect_type_mismatches()
-"Which files have user_id?"    → find_columns(column_name="user_id")
-"Give me a database summary"   → database_summary()
-"Find data quality issues"     → detect_semantic_type_issues()
-```
-
-#### Structured Output Mode  
-```
-"What files do we have?"       → list_files()
-"Schema of customers.csv"      → get_file_schema(file_name="customers.csv")
-"Any type mismatches?"         → detect_type_mismatches()
-```
-
-#### Pattern Matching Mode
-```
-"help"                        → Show help message
-"scan"                        → Trigger metadata scan
-"status"                      → Show system status
+"compare schemas across files"      → find_relationships(analysis_type="similar_schemas")
+"Which files have customer_id?"     → search_metadata(search_term="customer_id", search_type="column")
+"Give me a database summary"        → get_statistics(scope="database")
+"Find data quality issues"          → detect_inconsistencies(check_type="data_types")
+"What files do we have?"            → get_files()
+"Compare customers and orders"      → compare_items(item1="customers.csv", item2="orders.csv")
 ```
 
 ---
