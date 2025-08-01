@@ -1,19 +1,10 @@
 """Tool registry for modular schema tools."""
 
 from typing import Dict, List, Any
-import sys
-import os
-
-# Add src to path for imports
-src_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-if src_dir not in sys.path:
-    sys.path.insert(0, src_dir)
-
-# Import tools from modular files
-from .basic_tools import GetFilesTool, GetSchemasTool, GetStatisticsTool
-from .search_tools import SearchMetadataTool
-from .comparison_tools import FindRelationshipsTool, DetectInconsistenciesTool
-from .utility_tools import CompareItemsTool, RunAnalysisTool
+from tools.basic_tools import GetFilesTool, GetSchemasTool, GetStatisticsTool
+from tools.search_tools import SearchMetadataTool
+from tools.comparison_tools import FindRelationshipsTool, DetectInconsistenciesTool
+from tools.utility_tools import CompareItemsTool, RunAnalysisTool
 from utils.logger import get_logger
 
 

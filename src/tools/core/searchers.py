@@ -1,8 +1,7 @@
 """Search strategy implementations for different metadata types."""
 
 from typing import List, Dict, Any
-from .base_components import BaseSearcher
-
+from tools.core.base_components import BaseSearcher
 
 class ColumnSearcher(BaseSearcher):
     """Search strategy for column metadata."""

@@ -1,10 +1,19 @@
 """Analysis tools for relationships and consistency detection with semantic capabilities."""
 
-from typing import Dict, List, Any
-from .core.base_components import BaseTool
-from .core.analyzers import RelationshipAnalyzer, ConsistencyChecker
-from .core.formatters import TextFormatter
+from typing import Dict
+from tools.core.base_components import BaseTool
+from tools.core.analyzers import RelationshipAnalyzer, ConsistencyChecker
+from tools.core.formatters import TextFormatter
 
+# Try to import semantic components, fallback gracefully
+try:
+    from tools.core.semantic_search import SemanticConsistencyChecker
+    SEMANTIC_AVAILABLE = True
+except ImportError:
+    SEMANTIC_AVAILABLE = False
+except Exception:
+    # Catch any other errors during semantic import (like model loading)
+    SEMANTIC_AVAILABLE = False
 
 class FindRelationshipsTool(BaseTool):
     """Tool for finding relationships between files and columns with semantic capabilities."""
@@ -13,9 +22,12 @@ class FindRelationshipsTool(BaseTool):
     
     def __init__(self, metadata_store):
         super().__init__(metadata_store)
-        # Initialize semantic analyzer
-        from .core.semantic_search import SemanticSchemaAnalyzer
-        self.semantic_analyzer = SemanticSchemaAnalyzer()
+        self.relationship_analyzer = RelationshipAnalyzer(metadata_store)
+        # Initialize semantic analyzer if available
+        if SEMANTIC_AVAILABLE:
+            self.consistency_checker = SemanticConsistencyChecker()
+        else:
+            self.consistency_checker = None
     
     def get_parameters_schema(self) -> Dict:
         return {
@@ -68,7 +80,7 @@ class FindRelationshipsTool(BaseTool):
     
     def _semantic_analysis(self, analysis_type: str, threshold: float) -> str:
         """Perform semantic relationship analysis."""
-        if not self.semantic_analyzer.available:
+        if not SEMANTIC_AVAILABLE or self.consistency_checker is None:
             return "Semantic analysis not available. Install 'sentence-transformers' for semantic capabilities."
         
         try:
@@ -215,9 +227,11 @@ class DetectInconsistenciesTool(BaseTool):
     
     def __init__(self, metadata_store):
         super().__init__(metadata_store)
-        # Initialize semantic consistency checker
-        from .core.semantic_search import SemanticConsistencyChecker
-        self.semantic_checker = SemanticConsistencyChecker()
+        # Initialize semantic consistency checker if available
+        if SEMANTIC_AVAILABLE:
+            self.semantic_checker = SemanticConsistencyChecker()
+        else:
+            self.semantic_checker = None
     
     def get_parameters_schema(self) -> Dict:
         return {
@@ -269,7 +283,7 @@ class DetectInconsistenciesTool(BaseTool):
     
     def _semantic_consistency_check(self, check_type: str, threshold: float) -> str:
         """Perform semantic consistency checks."""
-        if not self.semantic_checker.available:
+        if not SEMANTIC_AVAILABLE or self.semantic_checker is None:
             return f"Semantic analysis not available for {check_type}. Install 'sentence-transformers' for semantic capabilities."
         
         try:

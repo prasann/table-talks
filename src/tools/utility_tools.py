@@ -1,10 +1,9 @@
 """Comparison and utility tools for complex operations."""
 
-from typing import Dict, List, Any
-from .core.base_components import BaseTool
-from .core.analyzers import RelationshipAnalyzer, ConsistencyChecker
-from .core.formatters import TextFormatter
-from .core.searchers import ColumnSearcher
+from typing import Dict
+from tools.core.base_components import BaseTool
+from tools.core.analyzers import RelationshipAnalyzer, ConsistencyChecker
+from tools.core.formatters import TextFormatter
 
 
 class CompareItemsTool(BaseTool):

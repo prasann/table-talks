@@ -1,15 +1,8 @@
 """Analysis strategy implementations for complex metadata operations."""
 
+import pandas as pd
 from typing import List, Dict, Any
-from .base_components import BaseAnalyzer
-
-# Check for optional pandas dependency
-try:
-    import pandas as pd
-    HAS_PANDAS = True
-except ImportError:
-    HAS_PANDAS = False
-
+from tools.core.base_components import BaseAnalyzer
 
 class RelationshipAnalyzer(BaseAnalyzer):
     """Analyzer for finding relationships between files and columns."""
@@ -26,47 +19,12 @@ class RelationshipAnalyzer(BaseAnalyzer):
     def _find_common_columns(self, threshold: int = 2) -> List[Dict[str, Any]]:
         """Find columns that appear in multiple files."""
         try:
-            if HAS_PANDAS:
-                return self._find_common_columns_pandas(threshold)
-            else:
-                return self._find_common_columns_basic(threshold)
-                
+            return self._find_common_columns_pandas(threshold)                
         except Exception as e:
             self.logger.error(f"Error finding common columns: {str(e)}")
             raise
     
-    def _find_common_columns_basic(self, threshold: int) -> List[Dict[str, Any]]:
-        """Basic implementation without pandas."""
-        files = self.store.list_all_files()
-        column_files = {}
-        
-        # Collect all columns and their files
-        for file_info in files:
-            schema = self.store.get_file_schema(file_info['file_name'])
-            if schema:
-                for col in schema:
-                    col_name = col['column_name']
-                    if col_name not in column_files:
-                        column_files[col_name] = []
-                    column_files[col_name].append({
-                        'file_name': file_info['file_name'],
-                        'data_type': col['data_type']
-                    })
-        
-        # Find columns appearing in multiple files
-        common_columns = []
-        for col_name, file_list in column_files.items():
-            if len(file_list) >= threshold:
-                common_columns.append({
-                    'column_name': col_name,
-                    'file_count': len(file_list),
-                    'files': [f['file_name'] for f in file_list],
-                    'data_types': list(set(f['data_type'] for f in file_list))
-                })
-        
-        # Sort by file count descending
-        return sorted(common_columns, key=lambda x: x['file_count'], reverse=True)
-    
+
     def _find_common_columns_pandas(self, threshold: int) -> List[Dict[str, Any]]:
         """Pandas implementation for better performance."""
         # Get all metadata as DataFrame
@@ -112,49 +70,13 @@ class RelationshipAnalyzer(BaseAnalyzer):
     def _find_similar_schemas(self, threshold: int = 3) -> List[Dict[str, Any]]:
         """Find files with similar schema structures."""
         try:
-            if HAS_PANDAS:
-                return self._find_similar_schemas_pandas(threshold)
-            else:
-                return self._find_similar_schemas_basic(threshold)
-                
+            return self._find_similar_schemas_pandas(threshold)                
         except Exception as e:
             self.logger.error(f"Error finding similar schemas: {str(e)}")
             raise
     
-    def _find_similar_schemas_basic(self, threshold: int) -> List[Dict[str, Any]]:
-        """Basic implementation for finding similar schemas."""
-        files = self.store.list_all_files()
-        file_schemas = {}
-        
-        # Get column sets for each file
-        for file_info in files:
-            schema = self.store.get_file_schema(file_info['file_name'])
-            if schema:
-                file_schemas[file_info['file_name']] = set(col['column_name'] for col in schema)
-        
-        # Compare all pairs
-        similar_pairs = []
-        file_names = list(file_schemas.keys())
-        
-        for i, file1 in enumerate(file_names):
-            for j, file2 in enumerate(file_names[i+1:], i+1):
-                common_columns = file_schemas[file1] & file_schemas[file2]
-                if len(common_columns) >= threshold:
-                    similar_pairs.append({
-                        'file1': file1,
-                        'file2': file2,
-                        'common_columns': len(common_columns),
-                        'common_column_names': list(common_columns),
-                        'file1_total': len(file_schemas[file1]),
-                        'file2_total': len(file_schemas[file2])
-                    })
-        
-        return sorted(similar_pairs, key=lambda x: x['common_columns'], reverse=True)
-    
     def _find_similar_schemas_pandas(self, threshold: int) -> List[Dict[str, Any]]:
         """Pandas implementation for finding similar schemas."""
-        # This would use pandas for more efficient computation
-        # For now, delegate to basic implementation
         return self._find_similar_schemas_basic(threshold)
 
 

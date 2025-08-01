@@ -1,15 +1,7 @@
 """Output formatting strategies for different presentation needs."""
-
+from tabulate import tabulate
 from typing import List, Dict, Any, Optional
-from .base_components import BaseFormatter
-
-# Check for optional tabulate dependency
-try:
-    from tabulate import tabulate
-    HAS_TABULATE = True
-except ImportError:
-    HAS_TABULATE = False
-
+from tools.core.base_components import BaseFormatter
 
 class TextFormatter(BaseFormatter):
     """Text-based formatter for current text-style output."""
@@ -181,11 +173,6 @@ class TableFormatter(BaseFormatter):
         """Format data as a table."""
         if not data:
             return "No results found."
-        
-        if not HAS_TABULATE:
-            # Fallback to text formatter
-            text_formatter = TextFormatter()
-            return text_formatter.format(data, context)
         
         context = context or {}
         table_format = context.get('table_format', 'simple')

@@ -8,18 +8,10 @@ Provides intelligent matching beyond exact string matching.
 import logging
 from typing import List, Dict, Optional, Tuple, Set
 from dataclasses import dataclass
+from sentence_transformers import SentenceTransformer
+import numpy as np
 
 logger = logging.getLogger(__name__)
-
-# Try to import semantic dependencies
-try:
-    from sentence_transformers import SentenceTransformer
-    import numpy as np
-    SEMANTIC_AVAILABLE = True
-except ImportError:
-    SEMANTIC_AVAILABLE = False
-    SentenceTransformer = None
-    np = None
 
 @dataclass
 class SemanticMatch:
@@ -32,26 +24,21 @@ class SemanticMatch:
 
 class SemanticSearcher:
     """
-    Optional semantic search using SentenceTransformer.
+    Semantic search using SentenceTransformer.
     Provides intelligent column name matching beyond exact substring matching.
     """
     
     def __init__(self):
         self.model = None
-        self.available = SEMANTIC_AVAILABLE
         self._column_embeddings_cache = {}
         self._model_name = "all-MiniLM-L6-v2"  # 80MB, fast, good for short texts
         
-        if self.available:
-            try:
-                self._initialize_model()
-            except Exception as e:
-                logger.warning(f"Failed to initialize semantic model: {e}")
-                self.available = False
+        # Initialize model on first use
+        self._initialize_model()
     
     def _initialize_model(self):
-        """Initialize the semantic model lazily on first use."""
-        if self.model is None and self.available:
+        """Initialize the semantic model."""
+        if self.model is None:
             logger.info(f"Loading semantic model: {self._model_name}")
             self.model = SentenceTransformer(self._model_name)
             logger.info("Semantic model loaded successfully")
@@ -69,54 +56,46 @@ class SemanticSearcher:
         Returns:
             List of SemanticMatch objects sorted by similarity
         """
-        if not self.available:
+        self._initialize_model()
+        
+        # Get embeddings for search term
+        search_embedding = self.model.encode([search_term])
+        
+        # Get embeddings for all columns (with caching)
+        column_embeddings = []
+        column_info = []
+        
+        for column_name, file_name in columns:
+            if column_name not in self._column_embeddings_cache:
+                # Enhance column name for better semantic matching
+                enhanced_name = self._enhance_column_name(column_name)
+                self._column_embeddings_cache[column_name] = self.model.encode([enhanced_name])
+            
+            column_embeddings.append(self._column_embeddings_cache[column_name][0])
+            column_info.append((column_name, file_name))
+        
+        if not column_embeddings:
             return []
         
-        try:
-            self._initialize_model()
-            
-            # Get embeddings for search term
-            search_embedding = self.model.encode([search_term])
-            
-            # Get embeddings for all columns (with caching)
-            column_embeddings = []
-            column_info = []
-            
-            for column_name, file_name in columns:
-                if column_name not in self._column_embeddings_cache:
-                    # Enhance column name for better semantic matching
-                    enhanced_name = self._enhance_column_name(column_name)
-                    self._column_embeddings_cache[column_name] = self.model.encode([enhanced_name])
-                
-                column_embeddings.append(self._column_embeddings_cache[column_name][0])
-                column_info.append((column_name, file_name))
-            
-            if not column_embeddings:
-                return []
-            
-            # Calculate similarities
-            column_embeddings = np.array(column_embeddings)
-            similarities = np.dot(search_embedding, column_embeddings.T)[0]
-            
-            # Create matches above threshold
-            matches = []
-            for i, similarity in enumerate(similarities):
-                if similarity >= threshold:
-                    column_name, file_name = column_info[i]
-                    matches.append(SemanticMatch(
-                        column_name=column_name,
-                        file_name=file_name,
-                        similarity=float(similarity),
-                        match_type='semantic'
-                    ))
-            
-            # Sort by similarity (highest first)
-            matches.sort(key=lambda x: x.similarity, reverse=True)
-            return matches
-            
-        except Exception as e:
-            logger.error(f"Error in semantic search: {e}")
-            return []
+        # Calculate similarities
+        column_embeddings = np.array(column_embeddings)
+        similarities = np.dot(search_embedding, column_embeddings.T)[0]
+        
+        # Create matches above threshold
+        matches = []
+        for i, similarity in enumerate(similarities):
+            if similarity >= threshold:
+                column_name, file_name = column_info[i]
+                matches.append(SemanticMatch(
+                    column_name=column_name,
+                    file_name=file_name,
+                    similarity=float(similarity),
+                    match_type='semantic'
+                ))
+        
+        # Sort by similarity (highest first)
+        matches.sort(key=lambda x: x.similarity, reverse=True)
+        return matches
     
     def _enhance_column_name(self, column_name: str) -> str:
         """
@@ -153,9 +132,6 @@ class SemanticSearcher:
         Returns:
             Dictionary mapping concept names to lists of matching columns
         """
-        if not self.available:
-            return {}
-        
         concepts = {
             "identifiers": ["id", "identifier", "primary key", "unique key"],
             "timestamps": ["date", "time", "timestamp", "created", "updated"],
@@ -190,7 +166,85 @@ class SemanticSearcher:
         return groups
 
 
-class SemanticSchemaAnalyzer:
+class ConceptClassifier:
+    """
+    Semantic concept classification for database columns.
+    Uses SentenceTransformer for intelligent concept detection.
+    """
+    
+    def __init__(self, searcher: SemanticSearcher = None):
+        if searcher is None:
+            searcher = SemanticSearcher()
+        self.searcher = searcher
+        
+        # Define concept templates with multiple examples
+        self.concept_templates = {
+            'identifier': [
+                "unique identifier", "primary key", "id field", "reference number",
+                "key column", "unique code", "identifier field"
+            ],
+            'timestamp': [
+                "date field", "time column", "timestamp data", "datetime field",
+                "creation date", "update time", "temporal data"
+            ],
+            'name': [
+                "name field", "title column", "label text", "description field", 
+                "text identifier", "display name"
+            ],
+            'user': [
+                "user data", "customer information", "client field", "person data",
+                "account holder", "profile information"
+            ],
+            'financial': [
+                "money amount", "price data", "cost field", "financial value",
+                "payment information", "currency amount"
+            ],
+            'quantity': [
+                "count field", "quantity data", "number amount", "volume data",
+                "measurement value", "numeric quantity"
+            ],
+            'status': [
+                "status field", "state data", "condition flag", "active indicator",
+                "enabled flag", "boolean status"
+            ],
+            'contact': [
+                "email address", "phone number", "contact information", "address field",
+                "communication data", "location information"
+            ]
+        }
+    
+    def classify_column(self, column_name: str, threshold: float = 0.6) -> str:
+        """
+        Classify a column into a semantic concept using AI similarity.
+        
+        Args:
+            column_name: The column name to classify
+            threshold: Minimum similarity threshold
+            
+        Returns:
+            The best matching concept or 'other'
+        """
+        best_concept = 'other'
+        best_similarity = 0.0
+        
+        # Test column against each concept template
+        for concept, templates in self.concept_templates.items():
+            # Find best match among templates for this concept
+            concept_similarity = 0.0
+            for template in templates:
+                # Create dummy column list for semantic search
+                dummy_columns = [(column_name, "test_file")]
+                matches = self.searcher.find_similar_columns(template, dummy_columns, threshold=0.1)
+                
+                if matches:
+                    concept_similarity = max(concept_similarity, matches[0].similarity)
+            
+            # Update best concept if this one is better
+            if concept_similarity > best_similarity and concept_similarity >= threshold:
+                best_similarity = concept_similarity
+                best_concept = concept
+        
+        return best_concept
     """
     Semantic schema similarity and concept analysis.
     Finds schemas that are conceptually similar even with different column names.
@@ -198,7 +252,6 @@ class SemanticSchemaAnalyzer:
     
     def __init__(self):
         self.searcher = SemanticSearcher()
-        self.available = self.searcher.available
     
     def find_similar_schemas(self, schemas: Dict[str, List[str]], 
                            threshold: float = 0.6) -> List[Dict]:
@@ -212,9 +265,6 @@ class SemanticSchemaAnalyzer:
         Returns:
             List of similarity analyses
         """
-        if not self.available:
-            return []
-        
         results = []
         file_names = list(schemas.keys())
         
@@ -243,7 +293,6 @@ class SemanticSchemaAnalyzer:
             return 0.0
         
         # Create column tuples for semantic search
-        cols1 = [(col, "schema1") for col in columns1]
         cols2 = [(col, "schema2") for col in columns2]
         
         matches = 0
@@ -274,29 +323,10 @@ class SemanticSchemaAnalyzer:
                     'column1': col1,
                     'column2': best_match.column_name,
                     'similarity': best_match.similarity,
-                    'concept': self._infer_concept(col1)
+                    'concept': self.classifier.classify_column(col1)
                 })
         
         return concepts
-    
-    def _infer_concept(self, column_name: str) -> str:
-        """Infer the semantic concept of a column."""
-        name_lower = column_name.lower()
-        
-        if 'id' in name_lower:
-            return 'identifier'
-        elif any(word in name_lower for word in ['date', 'time', 'created', 'updated']):
-            return 'timestamp'
-        elif any(word in name_lower for word in ['name', 'title']):
-            return 'name'
-        elif any(word in name_lower for word in ['customer', 'user', 'client']):
-            return 'user'
-        elif any(word in name_lower for word in ['price', 'amount', 'cost']):
-            return 'financial'
-        elif any(word in name_lower for word in ['quantity', 'count']):
-            return 'quantity'
-        else:
-            return 'other'
 
 
 class SemanticConsistencyChecker:
@@ -307,7 +337,7 @@ class SemanticConsistencyChecker:
     
     def __init__(self):
         self.searcher = SemanticSearcher()
-        self.available = self.searcher.available
+        self.classifier = ConceptClassifier(self.searcher)
     
     def find_naming_inconsistencies(self, columns: List[Tuple[str, str]], 
                                   threshold: float = 0.8) -> List[Dict]:
@@ -321,9 +351,6 @@ class SemanticConsistencyChecker:
         Returns:
             List of inconsistency reports
         """
-        if not self.available:
-            return []
-        
         inconsistencies = []
         processed = set()
         
@@ -345,7 +372,7 @@ class SemanticConsistencyChecker:
                 # Check if they have different naming patterns
                 if self._has_naming_inconsistency(group):
                     inconsistencies.append({
-                        'concept': self._infer_concept(col1),
+                        'concept': self.classifier.classify_column(col1),
                         'similar_columns': group,
                         'avg_similarity': sum(m.similarity for m in similar_matches) / len(similar_matches),
                         'suggestion': self._suggest_consistent_name(group)
@@ -390,65 +417,6 @@ class SemanticConsistencyChecker:
         
         # Default to most common pattern
         return min(names, key=len)  # Suggest shortest name
-    
-    def _infer_concept(self, column_name: str) -> str:
-        """Infer the semantic concept of a column."""
-        name_lower = column_name.lower()
-        
-        if 'id' in name_lower:
-            return 'identifier'
-        elif any(word in name_lower for word in ['date', 'time', 'created', 'updated']):
-            return 'timestamp'
-        elif any(word in name_lower for word in ['name', 'title']):
-            return 'name'
-        elif any(word in name_lower for word in ['customer', 'user', 'client']):
-            return 'user'
-        elif any(word in name_lower for word in ['price', 'amount', 'cost']):
-            return 'financial'
-        else:
-            return 'other'
-    
-    def check_concept_consistency(self, schemas: Dict[str, Dict[str, str]]) -> List[Dict]:
-        """
-        Check if same concepts use consistent data types across files.
-        
-        Args:
-            schemas: Dict mapping file_name to dict of column_name: data_type
-            
-        Returns:
-            List of concept consistency issues
-        """
-        if not self.available:
-            return []
-        
-        # Group columns by concept
-        concept_groups = {}
-        
-        for file_name, schema in schemas.items():
-            for column_name, data_type in schema.items():
-                concept = self._infer_concept(column_name)
-                if concept not in concept_groups:
-                    concept_groups[concept] = []
-                concept_groups[concept].append({
-                    'file': file_name,
-                    'column': column_name,
-                    'type': data_type
-                })
-        
-        # Check for type inconsistencies
-        issues = []
-        for concept, columns in concept_groups.items():
-            if len(columns) > 1:
-                types = set(col['type'] for col in columns)
-                if len(types) > 1:
-                    issues.append({
-                        'concept': concept,
-                        'inconsistent_types': list(types),
-                        'columns': columns,
-                        'suggestion': self._suggest_consistent_type(columns)
-                    })
-        
-        return issues
     
     def _suggest_consistent_type(self, columns: List[Dict]) -> str:
         """Suggest a consistent data type for a concept."""

@@ -1,9 +1,22 @@
-"""Search tools for metadata queries with semantic capabilities."""
+"""Search tools for metadata operations."""
 
-from typing import Dict, List, Any
-from .core.base_components import BaseTool
-from .core.searchers import ColumnSearcher, FileSearcher, TypeSearcher
-from .core.formatters import TextFormatter
+import logging
+from typing import Dict, Any
+from tools.core.base_components import BaseTool
+from tools.core.searchers import ColumnSearcher, FileSearcher, TypeSearcher
+from tools.core.formatters import TextFormatter
+
+# Try to import semantic components, fallback gracefully
+try:
+    from tools.core.semantic_search import SemanticSearcher
+    SEMANTIC_AVAILABLE = True
+except ImportError:
+    SEMANTIC_AVAILABLE = False
+except Exception:
+    # Catch any other errors during semantic import (like model loading)
+    SEMANTIC_AVAILABLE = False
+
+logger = logging.getLogger(__name__)
 
 
 class SearchMetadataTool(BaseTool):
@@ -14,8 +27,18 @@ class SearchMetadataTool(BaseTool):
     def __init__(self, metadata_store):
         super().__init__(metadata_store)
         # Initialize semantic searcher
-        from .core.semantic_search import SemanticSearcher
-        self.semantic_searcher = SemanticSearcher()
+    def __init__(self, metadata_store):
+        super().__init__(metadata_store)
+        # Initialize semantic searcher if available
+        if SEMANTIC_AVAILABLE:
+            try:
+                self.semantic_searcher = SemanticSearcher()
+            except Exception as e:
+                logger.warning(f"Semantic search initialization failed: {e}")
+                self.semantic_searcher = None
+        else:
+            logger.warning("Semantic search not available")
+            self.semantic_searcher = None
     
     def get_parameters_schema(self) -> Dict:
         return {
@@ -75,36 +98,34 @@ class SearchMetadataTool(BaseTool):
         return formatter.format(results, context)
     
     def _semantic_search(self, search_term: str, search_type: str) -> str:
-        """Perform semantic search with fallback to traditional search."""
+        """Perform semantic search using SentenceTransformer."""
         try:
-            # Get all columns for semantic analysis
-            files = self.store.list_all_files()
+            # Get all columns from all files
             all_columns = []
+            files = self.store.list_all_files()
             
             for file_info in files:
                 schema = self.store.get_file_schema(file_info['file_name'])
                 if schema:
-                    # Handle list format from MetadataStore
-                    for column_info in schema:
-                        if isinstance(column_info, dict) and 'column_name' in column_info:
-                            all_columns.append((column_info['column_name'], file_info['file_name']))
+                    for col in schema:
+                        all_columns.append((col['column_name'], file_info['file_name']))
             
-            # Perform semantic search
+            if not all_columns:
+                return "No columns found for semantic search."
+            
+            # Find semantically similar columns
             semantic_matches = self.semantic_searcher.find_similar_columns(
                 search_term, all_columns, threshold=0.6
             )
             
-            # If semantic search finds results, format them
-            if semantic_matches:
-                return self._format_semantic_results(search_term, semantic_matches)
-            else:
-                # Fallback to traditional search
-                self.logger.info(f"No semantic matches found for '{search_term}', falling back to traditional search")
-                return self._traditional_search(search_term, search_type)
+            if not semantic_matches:
+                return f"No semantic matches found for '{search_term}'."
+            
+            return self._format_semantic_results(semantic_matches, search_term)
             
         except Exception as e:
-            self.logger.warning(f"Semantic search failed: {e}, falling back to traditional search")
-            return self._traditional_search(search_term, search_type)
+            logger.error(f"Error in semantic search: {e}")
+            return f"Error in semantic search: {str(e)}"
     
     def _format_semantic_results(self, search_term: str, semantic_matches) -> str:
         """Format semantic search results."""
