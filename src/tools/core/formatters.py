@@ -1,7 +1,7 @@
 """Output formatting strategies for different presentation needs."""
 from tabulate import tabulate
 from typing import List, Dict, Any, Optional
-from tools.core.base_components import BaseFormatter
+from .base_components import BaseFormatter
 
 class TextFormatter(BaseFormatter):
     """Text-based formatter for current text-style output."""

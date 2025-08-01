@@ -6,6 +6,7 @@ Provides intelligent matching beyond exact string matching.
 """
 
 import logging
+import warnings
 from typing import List, Dict, Optional, Tuple, Set
 from dataclasses import dataclass
 from sentence_transformers import SentenceTransformer
@@ -32,16 +33,32 @@ class SemanticSearcher:
         self.model = None
         self._column_embeddings_cache = {}
         self._model_name = "all-MiniLM-L6-v2"  # 80MB, fast, good for short texts
+        self._available = True  # Track if semantic search is available
         
         # Initialize model on first use
         self._initialize_model()
     
+    @property
+    def available(self) -> bool:
+        """Check if semantic search is available."""
+        return self._available and self.model is not None
+    
     def _initialize_model(self):
         """Initialize the semantic model."""
         if self.model is None:
-            logger.info(f"Loading semantic model: {self._model_name}")
-            self.model = SentenceTransformer(self._model_name)
-            logger.info("Semantic model loaded successfully")
+            try:
+                logger.info(f"Loading semantic model: {self._model_name}")
+                # Suppress FutureWarning about encoder_attention_mask deprecation
+                with warnings.catch_warnings():
+                    warnings.filterwarnings("ignore", category=FutureWarning, 
+                                          message=".*encoder_attention_mask.*")
+                    self.model = SentenceTransformer(self._model_name)
+                logger.info("Semantic model loaded successfully")
+                self._available = True
+            except Exception as e:
+                logger.error(f"Failed to load semantic model: {e}")
+                self._available = False
+                self.model = None
     
     def find_similar_columns(self, search_term: str, columns: List[Tuple[str, str]], 
                            threshold: float = 0.6) -> List[SemanticMatch]:
@@ -56,10 +73,17 @@ class SemanticSearcher:
         Returns:
             List of SemanticMatch objects sorted by similarity
         """
+        if not self.available:
+            logger.warning("Semantic search not available, returning empty results")
+            return []
+        
         self._initialize_model()
         
-        # Get embeddings for search term
-        search_embedding = self.model.encode([search_term])
+        # Get embeddings for search term with warning suppression
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", category=FutureWarning, 
+                                  message=".*encoder_attention_mask.*")
+            search_embedding = self.model.encode([search_term])
         
         # Get embeddings for all columns (with caching)
         column_embeddings = []
@@ -69,7 +93,10 @@ class SemanticSearcher:
             if column_name not in self._column_embeddings_cache:
                 # Enhance column name for better semantic matching
                 enhanced_name = self._enhance_column_name(column_name)
-                self._column_embeddings_cache[column_name] = self.model.encode([enhanced_name])
+                with warnings.catch_warnings():
+                    warnings.filterwarnings("ignore", category=FutureWarning, 
+                                          message=".*encoder_attention_mask.*")
+                    self._column_embeddings_cache[column_name] = self.model.encode([enhanced_name])
             
             column_embeddings.append(self._column_embeddings_cache[column_name][0])
             column_info.append((column_name, file_name))
@@ -132,6 +159,10 @@ class SemanticSearcher:
         Returns:
             Dictionary mapping concept names to lists of matching columns
         """
+        if not self.available:
+            logger.warning("Semantic search not available, returning empty concept groups")
+            return {}
+        
         concepts = {
             "identifiers": ["id", "identifier", "primary key", "unique key"],
             "timestamps": ["date", "time", "timestamp", "created", "updated"],
@@ -245,6 +276,9 @@ class ConceptClassifier:
                 best_concept = concept
         
         return best_concept
+
+
+class SchemaSimilarityAnalyzer:
     """
     Semantic schema similarity and concept analysis.
     Finds schemas that are conceptually similar even with different column names.
@@ -252,6 +286,7 @@ class ConceptClassifier:
     
     def __init__(self):
         self.searcher = SemanticSearcher()
+        self.classifier = ConceptClassifier(self.searcher)
     
     def find_similar_schemas(self, schemas: Dict[str, List[str]], 
                            threshold: float = 0.6) -> List[Dict]:

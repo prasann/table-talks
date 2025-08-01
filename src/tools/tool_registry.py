@@ -1,10 +1,10 @@
 """Tool registry for modular schema tools."""
 
 from typing import Dict, List, Any
-from tools.basic_tools import GetFilesTool, GetSchemasTool, GetStatisticsTool
-from tools.search_tools import SearchMetadataTool
-from tools.comparison_tools import FindRelationshipsTool, DetectInconsistenciesTool
-from tools.utility_tools import CompareItemsTool, RunAnalysisTool
+from .basic_tools import GetFilesTool, GetSchemasTool, GetStatisticsTool
+from .search_tools import SearchMetadataTool
+from .comparison_tools import FindRelationshipsTool, DetectInconsistenciesTool
+from .utility_tools import CompareItemsTool, RunAnalysisTool
 from utils.logger import get_logger
 
 

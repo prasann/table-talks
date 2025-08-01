@@ -2,19 +2,10 @@
 
 import logging
 from typing import Dict, Any
-from tools.core.base_components import BaseTool
-from tools.core.searchers import ColumnSearcher, FileSearcher, TypeSearcher
-from tools.core.formatters import TextFormatter
-
-# Try to import semantic components, fallback gracefully
-try:
-    from tools.core.semantic_search import SemanticSearcher
-    SEMANTIC_AVAILABLE = True
-except ImportError:
-    SEMANTIC_AVAILABLE = False
-except Exception:
-    # Catch any other errors during semantic import (like model loading)
-    SEMANTIC_AVAILABLE = False
+from .core.base_components import BaseTool
+from .core.searchers import ColumnSearcher, FileSearcher, TypeSearcher
+from .core.formatters import TextFormatter
+from .core.semantic_search import SemanticSearcher
 
 logger = logging.getLogger(__name__)
 
@@ -22,23 +13,11 @@ logger = logging.getLogger(__name__)
 class SearchMetadataTool(BaseTool):
     """Tool for searching across metadata with optional semantic capabilities."""
     
-    description = "Search across metadata. search_type: 'column', 'file', 'type'. Use semantic=True for intelligent matching."
+    description = "Search across metadata. search_type: 'column', 'file', 'type'. Use semantic=True for concept searches (e.g., 'customer identifier', 'date fields') or when exact names are unknown."
     
     def __init__(self, metadata_store):
         super().__init__(metadata_store)
-        # Initialize semantic searcher
-    def __init__(self, metadata_store):
-        super().__init__(metadata_store)
-        # Initialize semantic searcher if available
-        if SEMANTIC_AVAILABLE:
-            try:
-                self.semantic_searcher = SemanticSearcher()
-            except Exception as e:
-                logger.warning(f"Semantic search initialization failed: {e}")
-                self.semantic_searcher = None
-        else:
-            logger.warning("Semantic search not available")
-            self.semantic_searcher = None
+        self.semantic_searcher = SemanticSearcher()
     
     def get_parameters_schema(self) -> Dict:
         return {
@@ -56,7 +35,7 @@ class SearchMetadataTool(BaseTool):
                 },
                 "semantic": {
                     "type": "boolean",
-                    "description": "Enable semantic search for intelligent matching (finds similar concepts)",
+                    "description": "Enable semantic search for concept-based queries (e.g., 'customer identifier' finds 'customer_id', 'user_id'). Use when searching for concepts rather than exact names.",
                     "default": False
                 }
             },
@@ -70,7 +49,20 @@ class SearchMetadataTool(BaseTool):
             if semantic and search_type == "column" and self.semantic_searcher.available:
                 return self._semantic_search(search_term, search_type)
             else:
-                return self._traditional_search(search_term, search_type)
+                # Try traditional search first
+                traditional_result = self._traditional_search(search_term, search_type)
+                
+                # If traditional search finds no results for columns and semantic search is available,
+                # automatically try semantic search as fallback
+                if (search_type == "column" and 
+                    self.semantic_searcher.available and 
+                    ("No results found" in traditional_result or "no matches" in traditional_result.lower())):
+                    
+                    semantic_result = self._semantic_search(search_term, search_type)
+                    if semantic_result and "No semantic matches found" not in semantic_result:
+                        return f"No exact matches found. Here are semantic matches:\n\n{semantic_result}"
+                
+                return traditional_result
             
         except Exception as e:
             self.logger.error(f"Error searching metadata: {str(e)}")
@@ -127,7 +119,7 @@ class SearchMetadataTool(BaseTool):
             logger.error(f"Error in semantic search: {e}")
             return f"Error in semantic search: {str(e)}"
     
-    def _format_semantic_results(self, search_term: str, semantic_matches) -> str:
+    def _format_semantic_results(self, semantic_matches, search_term: str) -> str:
         """Format semantic search results."""
         # Convert semantic matches to format compatible with existing formatter
         results = []

@@ -1,19 +1,10 @@
 """Analysis tools for relationships and consistency detection with semantic capabilities."""
 
 from typing import Dict
-from tools.core.base_components import BaseTool
-from tools.core.analyzers import RelationshipAnalyzer, ConsistencyChecker
-from tools.core.formatters import TextFormatter
-
-# Try to import semantic components, fallback gracefully
-try:
-    from tools.core.semantic_search import SemanticConsistencyChecker
-    SEMANTIC_AVAILABLE = True
-except ImportError:
-    SEMANTIC_AVAILABLE = False
-except Exception:
-    # Catch any other errors during semantic import (like model loading)
-    SEMANTIC_AVAILABLE = False
+from .core.base_components import BaseTool
+from .core.analyzers import RelationshipAnalyzer, ConsistencyChecker
+from .core.formatters import TextFormatter
+from .core.semantic_search import SemanticConsistencyChecker, SemanticSearcher
 
 class FindRelationshipsTool(BaseTool):
     """Tool for finding relationships between files and columns with semantic capabilities."""
@@ -23,11 +14,7 @@ class FindRelationshipsTool(BaseTool):
     def __init__(self, metadata_store):
         super().__init__(metadata_store)
         self.relationship_analyzer = RelationshipAnalyzer(metadata_store)
-        # Initialize semantic analyzer if available
-        if SEMANTIC_AVAILABLE:
-            self.consistency_checker = SemanticConsistencyChecker()
-        else:
-            self.consistency_checker = None
+        self.consistency_checker = SemanticConsistencyChecker()
     
     def get_parameters_schema(self) -> Dict:
         return {
@@ -80,9 +67,6 @@ class FindRelationshipsTool(BaseTool):
     
     def _semantic_analysis(self, analysis_type: str, threshold: float) -> str:
         """Perform semantic relationship analysis."""
-        if not SEMANTIC_AVAILABLE or self.consistency_checker is None:
-            return "Semantic analysis not available. Install 'sentence-transformers' for semantic capabilities."
-        
         try:
             if analysis_type == "similar_schemas":
                 return self._find_similar_schemas(threshold)
@@ -114,7 +98,9 @@ class FindRelationshipsTool(BaseTool):
                 schemas[file_info['file_name']] = column_names
         
         # Find similar schemas
-        similar_schemas = self.semantic_analyzer.find_similar_schemas(schemas, threshold)
+        from .core.semantic_search import SchemaSimilarityAnalyzer
+        semantic_analyzer = SchemaSimilarityAnalyzer()
+        similar_schemas = semantic_analyzer.find_similar_schemas(schemas, threshold)
         
         if not similar_schemas:
             return f"No semantically similar schemas found (threshold: {threshold})"
@@ -152,9 +138,6 @@ class FindRelationshipsTool(BaseTool):
         from .core.semantic_search import SemanticSearcher
         searcher = SemanticSearcher()
         
-        if not searcher.available:
-            return "Semantic grouping not available. Install 'sentence-transformers' for semantic capabilities."
-        
         # Get concept groups
         concept_groups = searcher.get_concept_groups(all_columns, threshold)
         
@@ -190,9 +173,8 @@ class FindRelationshipsTool(BaseTool):
                 
                 from .core.semantic_search import SemanticSearcher
                 searcher = SemanticSearcher()
-                if searcher.available:
-                    concepts = searcher.get_concept_groups(file_columns, threshold)
-                    file_concepts[file_info['file_name']] = concepts
+                concepts = searcher.get_concept_groups(file_columns, threshold)
+                file_concepts[file_info['file_name']] = concepts
         
         if not file_concepts:
             return "No concept evolution data available"
@@ -227,11 +209,7 @@ class DetectInconsistenciesTool(BaseTool):
     
     def __init__(self, metadata_store):
         super().__init__(metadata_store)
-        # Initialize semantic consistency checker if available
-        if SEMANTIC_AVAILABLE:
-            self.semantic_checker = SemanticConsistencyChecker()
-        else:
-            self.semantic_checker = None
+        self.semantic_checker = SemanticConsistencyChecker()
     
     def get_parameters_schema(self) -> Dict:
         return {
@@ -283,9 +261,6 @@ class DetectInconsistenciesTool(BaseTool):
     
     def _semantic_consistency_check(self, check_type: str, threshold: float) -> str:
         """Perform semantic consistency checks."""
-        if not SEMANTIC_AVAILABLE or self.semantic_checker is None:
-            return f"Semantic analysis not available for {check_type}. Install 'sentence-transformers' for semantic capabilities."
-        
         try:
             if check_type == "semantic_naming":
                 return self._check_semantic_naming(threshold)
@@ -388,11 +363,7 @@ class DetectInconsistenciesTool(BaseTool):
         # Find potential abbreviations (columns with high semantic similarity but different lengths)
         abbreviations = []
         
-        from .core.semantic_search import SemanticSearcher
         searcher = SemanticSearcher()
-        
-        if not searcher.available:
-            return "Abbreviation detection not available. Install 'sentence-transformers' for semantic capabilities."
         
         processed = set()
         

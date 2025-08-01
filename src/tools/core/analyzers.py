@@ -2,7 +2,7 @@
 
 import pandas as pd
 from typing import List, Dict, Any
-from tools.core.base_components import BaseAnalyzer
+from .base_components import BaseAnalyzer
 
 class RelationshipAnalyzer(BaseAnalyzer):
     """Analyzer for finding relationships between files and columns."""
