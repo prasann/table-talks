@@ -2,7 +2,15 @@
 
 from abc import ABC, abstractmethod
 from typing import Dict, List, Any, Optional
-from ...utils.logger import get_logger
+import sys
+import os
+
+# Add src to path for imports
+src_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+if src_dir not in sys.path:
+    sys.path.insert(0, src_dir)
+
+from utils.logger import get_logger
 
 
 class BaseTool(ABC):

@@ -12,7 +12,6 @@ if src_dir not in sys.path:
 # Always use absolute imports from src
 from metadata.metadata_store import MetadataStore
 from metadata.schema_extractor import SchemaExtractor
-from tools.schema_tools import SchemaTools
 from agent.schema_agent import SchemaAgent
 
 
@@ -29,12 +28,11 @@ class ChatInterface:
             max_file_size_mb=config['scanner']['max_file_size_mb'],
             sample_size=config['scanner']['sample_size']
         )
-        self.schema_tools = SchemaTools(self.metadata_store)
         
-        # Initialize Schema agent
+        # Initialize Schema agent (simplified - function calling only)
         try:
             self.agent = SchemaAgent(
-                schema_tools=self.schema_tools,
+                metadata_store=self.metadata_store,
                 model_name=config['llm']['model'],
                 base_url=config['llm']['base_url']
             )
@@ -42,11 +40,10 @@ class ChatInterface:
             # Get status to display the right message
             status = self.agent.get_status()
             if status.get('function_calling'):
-                print("🚀 Advanced mode: Native function calling enabled!")
-            elif status.get('llm_available'):
-                print("🤖 Intelligent mode: LLM query parsing enabled!")
+                print(f"🚀 Function calling mode enabled with {status['tools_available']} tools!")
+                print(f"📊 Available tools: {', '.join(status['tool_names'][:4])}...")
             else:
-                print("📝 Basic mode: Pattern matching only")
+                print("❌ Function calling not supported - please use phi4-mini-fc model")
                 
         except Exception as e:
             print(f"⚠️  LLM agent not available: {e}")

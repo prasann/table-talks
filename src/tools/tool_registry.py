@@ -1,11 +1,19 @@
 """Tool registry for unified schema tools."""
 
 from typing import Dict, List, Any
+import sys
+import os
+
+# Add src to path for imports
+src_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+if src_dir not in sys.path:
+    sys.path.insert(0, src_dir)
+
 from .unified_tools import (
     GetFilesTool, GetSchemasTool, SearchMetadataTool, GetStatisticsTool,
     FindRelationshipsTool, DetectInconsistenciesTool, CompareItemsTool, RunAnalysisTool
 )
-from ..utils.logger import get_logger
+from utils.logger import get_logger
 
 
 class ToolRegistry:

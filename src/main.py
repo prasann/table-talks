@@ -4,12 +4,7 @@ import os
 import sys
 import yaml
 import logging
-import warnings
 from pathlib import Path
-
-# Suppress LangChain deprecation warnings for cleaner output
-warnings.filterwarnings("ignore", category=DeprecationWarning, module="langchain")
-warnings.filterwarnings("ignore", message=".*deprecated.*", category=DeprecationWarning)
 
 # Ensure src is in Python path for consistent imports
 src_dir = os.path.dirname(os.path.abspath(__file__))
