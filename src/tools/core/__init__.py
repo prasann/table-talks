@@ -4,6 +4,7 @@ from .base_components import BaseSearcher, BaseAnalyzer, BaseFormatter, BaseTool
 from .searchers import ColumnSearcher, FileSearcher, TypeSearcher
 from .analyzers import RelationshipAnalyzer, ConsistencyChecker
 from .formatters import TableFormatter, TextFormatter
+# Note: semantic_search is imported conditionally within tools to avoid heavy dependencies
 
 __all__ = [
     # Base classes
@@ -12,4 +13,5 @@ __all__ = [
     'ColumnSearcher', 'FileSearcher', 'TypeSearcher',
     'RelationshipAnalyzer', 'ConsistencyChecker',
     'TableFormatter', 'TextFormatter'
+    # Semantic components are imported on-demand within specific tools
 ]

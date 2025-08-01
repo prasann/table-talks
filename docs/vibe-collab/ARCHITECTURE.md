@@ -5,7 +5,58 @@
 
 ## 📊 System Overview
 
-TableTalk is a conversational EDA (Exploratory Data Analysis) assistant that enables natural language exploration of data schemas using local language models. The system uses a **unified tool architecture** with native Ollama function calling for maximum flexibility and performance.
+TableTalk is a conversational EDA (Exploratory Data Analysis) assistant that enables Tool Call Request
+    ↓
+ToolRegistry.execute_tool(name, **kwargs)
+    ↓
+Tool.execute(**kwargs)
+    ├─ Strategy Component (searcher/analyzer)
+    ├─ MetadataStore Query
+    └─ Formatter (text/table)
+    ↓
+Formatted Result String
+```
+
+### **Semantic Enhancement Flow** 🧠
+```
+Natural Language Query ("find user identifiers semantically")
+    ↓
+Agent recognizes semantic intent (contains "semantically", "semantic", etc.)
+    ↓
+Tool called with semantic=True parameter
+    ↓
+Semantic availability check (sentence-transformers installed?)
+    ├─ YES: Semantic processing
+    │   ├─ Load SentenceTransformer model (cached after first use)
+    │   ├─ Generate embeddings for search term
+    │   ├─ Compare with cached column embeddings  
+    │   ├─ Calculate semantic similarities (threshold 0.6+)
+    │   └─ Return ranked results with similarity scores
+    │
+    └─ NO: Graceful fallback to traditional search
+    ↓
+Enhanced results with semantic understanding
+```
+
+### **Semantic Search Architecture**
+```
+User Query: "find user identifiers"
+    ↓
+Enhanced Column Name: "user identifier primary key"
+    ↓
+SentenceTransformer Embedding (384 dimensions)
+    ↓
+Similarity Calculation vs All Columns
+    ├─ user_id: 0.679 (above threshold 0.6)
+    ├─ customer_id: 0.593 (above threshold 0.6)  
+    └─ order_date: 0.234 (below threshold, filtered)
+    ↓
+Semantic Results:
+📍 reviews.csv → user_id (similarity: 0.679)
+📍 customers.csv → customer_id (similarity: 0.593)
+```
+
+## 🗄️ Data Architectureage exploration of data schemas using local language models. The system uses a **unified tool architecture** with native Ollama function calling for maximum flexibility and performance.
 
 ## 🎯 Core Architecture
 
@@ -41,6 +92,23 @@ TableTalk is a conversational EDA (Exploratory Data Analysis) assistant that ena
 │  │  File,      │ │  Consist.) │ │  Table)     │        │
 │  │  Type)      │ │            │ │             │        │
 │  └─────────────┘ └────────────┘ └─────────────┘        │
+│                                                         │
+│  ┌─────────────────────────────────────────────────┐    │
+│  │         🧠 Semantic Intelligence Layer          │    │
+│  │  ┌───────────────┐ ┌─────────────────────────┐  │    │
+│  │  │ Semantic      │ │ SemanticSchema          │  │    │
+│  │  │ Searcher      │ │ Analyzer                │  │    │
+│  │  │ • SentenceTr  │ │ • Schema similarity     │  │    │
+│  │  │ • Column sim  │ │ • Concept grouping      │  │    │
+│  │  │ • Threshold   │ │ • Evolution analysis    │  │    │
+│  │  └───────────────┘ └─────────────────────────┘  │    │
+│  │  ┌───────────────────────────────────────────┐  │    │
+│  │  │ SemanticConsistencyChecker                │  │    │
+│  │  │ • Naming inconsistencies                  │  │    │
+│  │  │ • Abbreviation detection                  │  │    │
+│  │  │ • Concept type consistency                │  │    │
+│  │  └───────────────────────────────────────────┘  │    │
+│  └─────────────────────────────────────────────────┘    │
 │                                                         │
 │              MetadataStore + DuckDB                     │
 │         • Schema extraction (CSV/Parquet)              │

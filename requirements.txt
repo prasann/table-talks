@@ -8,6 +8,10 @@ click>=8.0.0
 # pandas>=2.0.0       # For advanced data analysis (optional)
 # tabulate>=0.9.0     # For better table formatting (optional)
 
+# Semantic search dependencies (optional)
+# sentence-transformers>=2.2.0  # For semantic column and schema analysis (optional)
+# scikit-learn>=1.0.0          # For similarity calculations (usually included with sentence-transformers)
+
 # Development dependencies
 pytest>=7.0.0
 black>=23.0.0

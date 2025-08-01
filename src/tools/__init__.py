@@ -1,14 +1,22 @@
-"""Unified tool functions for schema queries."""
+"""Modular tool functions for schema queries."""
 
-# Import new unified tools
+# Import tool registry
 from .tool_registry import ToolRegistry
-from .unified_tools import (
-    GetFilesTool, GetSchemasTool, SearchMetadataTool, GetStatisticsTool,
-    FindRelationshipsTool, DetectInconsistenciesTool, CompareItemsTool, RunAnalysisTool
-)
+
+# Import from modular files
+from .basic_tools import GetFilesTool, GetSchemasTool, GetStatisticsTool
+from .search_tools import SearchMetadataTool
+from .comparison_tools import FindRelationshipsTool, DetectInconsistenciesTool
+from .utility_tools import CompareItemsTool, RunAnalysisTool
 
 __all__ = [
     'ToolRegistry',
-    'GetFilesTool', 'GetSchemasTool', 'SearchMetadataTool', 'GetStatisticsTool',
-    'FindRelationshipsTool', 'DetectInconsistenciesTool', 'CompareItemsTool', 'RunAnalysisTool'
+    # Basic Information Tools
+    'GetFilesTool', 'GetSchemasTool', 'GetStatisticsTool',
+    # Search Tools
+    'SearchMetadataTool',
+    # Analysis Tools
+    'FindRelationshipsTool', 'DetectInconsistenciesTool',
+    # Utility Tools
+    'CompareItemsTool', 'RunAnalysisTool'
 ]

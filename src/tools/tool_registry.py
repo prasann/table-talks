@@ -1,4 +1,4 @@
-"""Tool registry for unified schema tools."""
+"""Tool registry for modular schema tools."""
 
 from typing import Dict, List, Any
 import sys
@@ -9,10 +9,11 @@ src_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file
 if src_dir not in sys.path:
     sys.path.insert(0, src_dir)
 
-from .unified_tools import (
-    GetFilesTool, GetSchemasTool, SearchMetadataTool, GetStatisticsTool,
-    FindRelationshipsTool, DetectInconsistenciesTool, CompareItemsTool, RunAnalysisTool
-)
+# Import tools from modular files
+from .basic_tools import GetFilesTool, GetSchemasTool, GetStatisticsTool
+from .search_tools import SearchMetadataTool
+from .comparison_tools import FindRelationshipsTool, DetectInconsistenciesTool
+from .utility_tools import CompareItemsTool, RunAnalysisTool
 from utils.logger import get_logger
 
 

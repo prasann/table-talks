@@ -1,15 +1,15 @@
 # 🏗️ TableTalk Architecture Documentation
 
 **Last Updated**: August 1, 2025  
-**Version**: 2.0 (Unified Tool Architecture)
+**Version**: 3.0 (Clean Modular Architecture)
 
 ## 📊 System Overview
 
-TableTalk is a conversational EDA (Exploratory Data Analysis) assistant that enables natural language exploration of data schemas using local language models. The system uses a **unified tool architecture** with native Ollama function calling for maximum flexibility and performance.
+TableTalk is a conversational EDA (Exploratory Data Analysis) assistant that enables natural language exploration of data schemas using local language models. The system uses a **clean modular tool architecture** with native Ollama function calling for optimal performance and maintainability.
 
 ## 🎯 Core Architecture
 
-### **4-Layer Design**
+### **4-Layer Clean Design**
 ```
 ┌─────────────────────────────────────────────────────────┐
 │                CLI Interface                            │
@@ -30,17 +30,22 @@ TableTalk is a conversational EDA (Exploratory Data Analysis) assistant that ena
 │    • Single source of truth for 8 tools               │
 │    • Auto-schema generation for Ollama                │
 │    • Centralized execution & error handling           │
-│    • Strategy pattern integration                     │
+│    • Modular tool architecture                        │
 └─────────────────────┬───────────────────────────────────┘
                       │
 ┌─────────────────────▼───────────────────────────────────┐
-│           Strategy Components & Data Layer              │
+│        Modular Tools & Strategy Components             │
 │  ┌─────────────┐ ┌────────────┐ ┌─────────────┐        │
-│  │ Searchers   │ │ Analyzers  │ │ Formatters  │        │
-│  │ (Column,    │ │ (Relations,│ │ (Text,      │        │
-│  │  File,      │ │  Consist.) │ │  Table)     │        │
-│  │  Type)      │ │            │ │             │        │
+│  │ Basic Tools │ │Search Tools│ │Comparison   │        │
+│  │ • Files     │ │ • Metadata │ │Tools        │        │
+│  │ • Schemas   │ │ • Semantic │ │ • Relations │        │
+│  │ • Stats     │ │   Search   │ │ • Consistency│       │
 │  └─────────────┘ └────────────┘ └─────────────┘        │
+│                   ┌─────────────┐                      │
+│                   │Utility Tools│                      │
+│                   │ • Compare   │                      │
+│                   │ • Analysis  │                      │
+│                   └─────────────┘                      │
 │                                                         │
 │              MetadataStore + DuckDB                     │
 │         • Schema extraction (CSV/Parquet)              │
@@ -50,56 +55,96 @@ TableTalk is a conversational EDA (Exploratory Data Analysis) assistant that ena
 ```
 
 ### **Design Philosophy**
-1. **Simplicity First**: Clean, maintainable code over complex abstractions
+1. **Clean Modularity**: Well-organized, single-responsibility modules
 2. **Local-First**: All processing happens locally for privacy and cost control
 3. **Function Calling Only**: Single processing path using native Ollama function calling
 4. **Strategy Pattern**: Pluggable components for extensibility
-5. **Single Source of Truth**: ToolRegistry eliminates duplication
+5. **Maintainable**: Easy to understand, modify, and extend
+6. **Semantic Intelligence**: Optional AI-powered understanding with graceful fallback
 
 ### **Technology Stack**
 - **Python 3.11+**: Primary language with type hints
 - **DuckDB**: Embedded analytics database for metadata storage
 - **Ollama**: Local LLM serving with native function calling
 - **Phi-4-mini-fc**: Microsoft's function calling enabled model
-- **Optional Dependencies**: pandas (data analysis), tabulate (table formatting)
+- **Optional Dependencies**: sentence-transformers (semantic search), pandas (data analysis)
 
-## 🛠️ Component Architecture
+## 🛠️ Modular Component Architecture
 
 ### **1. Tool Registry (Central Hub)**
 ```python
 # Single source of truth for all tools
 class ToolRegistry:
-    - Auto-registers 8 unified tools
+    - Auto-registers 8 modular tools from 4 files
     - Generates Ollama function schemas automatically  
     - Provides centralized execution & error handling
     - Maintains tool lifecycle & logging
 ```
 
 **Key Features:**
+- ✅ **Modular loading** - Tools organized in logical files
 - ✅ **Auto-discovery** - Tools register themselves
 - ✅ **Schema generation** - Ollama function calling schemas
 - ✅ **Error resilience** - Comprehensive error handling
 - ✅ **Extensibility** - Easy to add new tools
 
-### **2. Unified Tools (8 Core Tools)**
+### **2. Modular Tools (8 Tools in 4 Organized Files)**
 
-#### **Data Retrieval Tools:**
+#### **Basic Information Tools** (`src/tools/basic_tools.py`)
 ```python
-get_files(pattern=None)                    # File listing with filtering
-get_schemas(file_pattern=None, detailed=True)  # Schema information
-search_metadata(search_term, search_type="column")  # Universal search
-get_statistics(scope="database", target=None)       # Multi-level stats
+GetFilesTool(pattern=None)                         # File listing with filtering
+GetSchemasTool(file_pattern=None, detailed=True)   # Schema information  
+GetStatisticsTool(scope="database", target=None)   # Multi-level stats
 ```
 
-#### **Analysis Tools:**
+#### **Search Tools** (`src/tools/search_tools.py`)
 ```python
-find_relationships(analysis_type="common_columns", threshold=2)  # Relationships
-detect_inconsistencies(check_type="data_types")                 # Inconsistencies  
-compare_items(item1, item2, comparison_type="schemas")          # Comparisons
-run_analysis(description)                                       # Complex queries
+SearchMetadataTool(search_term, search_type="column", semantic=False)  # Universal search with AI
 ```
 
-### **3. SchemaAgent - Simplified Query Processing**
+#### **Analysis Tools** (`src/tools/comparison_tools.py`)
+```python
+FindRelationshipsTool(analysis_type="common_columns", threshold=2, semantic=False)  # Relationships
+DetectInconsistenciesTool(check_type="data_types", threshold=0.8)                  # Quality checks
+```
+
+#### **Utility Tools** (`src/tools/utility_tools.py`)
+```python
+CompareItemsTool(item1, item2, comparison_type="schemas")  # File comparisons
+RunAnalysisTool(description)                              # Complex queries
+```
+
+### **3. Enhanced Features**
+
+#### **Semantic Intelligence** (Optional)
+- **AI-Powered Search**: Find "user identifiers" → matches `user_id`, `customer_id`
+- **Concept Understanding**: Semantic similarity detection for column relationships
+- **Smart Naming**: Detect inconsistent naming patterns across files
+- **Graceful Fallback**: Works without heavy AI dependencies
+
+#### **File Organization Benefits**
+```
+src/tools/
+├── basic_tools.py      # Core information retrieval (210 lines)
+├── search_tools.py     # Smart search functionality (143 lines)  
+├── comparison_tools.py # Advanced analysis & AI (403 lines)
+├── utility_tools.py    # Utility operations (153 lines)
+├── tool_registry.py    # Central coordination
+└── core/              # Strategy components
+    ├── base_components.py
+    ├── searchers.py
+    ├── analyzers.py  
+    ├── formatters.py
+    └── semantic_search.py
+```
+
+**Benefits:**
+- 🎯 **Find code fast** - Logical organization by functionality
+- 🔧 **Easy maintenance** - Focused, single-responsibility files
+- 📈 **Better testing** - Isolated components for unit testing
+- 🚀 **Faster development** - Clear separation of concerns
+
+### **4. SchemaAgent - Simplified Query Processing**
 
 Single agent with ToolRegistry integration and function calling only:
 
@@ -119,11 +164,11 @@ class SchemaAgent:
 
 **Features:**
 - **Native Ollama function calling**: Direct API calls with auto-generated schemas
-- **Auto-tool selection**: Model chooses appropriate tool from 8 unified options
+- **Auto-tool selection**: Model chooses appropriate tool from 8 modular options
 - **Model compatibility**: Detects function calling support (phi4-mini-fc required)
 - **Error handling**: Graceful failures with user guidance
 
-### **4. Strategy Pattern Components**
+### **5. Strategy Pattern Components**
 
 #### **Searchers** (`src/tools/core/searchers.py`)
 ```python
@@ -144,13 +189,20 @@ TextFormatter     # Human-readable text output with emojis
 TableFormatter    # Tabular output (optional tabulate integration)
 ```
 
+#### **Semantic Intelligence** (`src/tools/core/semantic_search.py`)
+```python
+SemanticSearcher           # AI-powered column matching
+SemanticSchemaAnalyzer     # Schema similarity analysis
+SemanticConsistencyChecker # Intelligent naming validation
+```
+
 **Benefits:**
 - **Pluggable components**: Easy to add new search/analysis/formatting types
 - **Clean separation**: Search vs analysis vs formatting concerns
 - **Testable**: Each component can be unit tested independently
-- **Optional dependencies**: Graceful fallback when pandas/tabulate unavailable
+- **Optional dependencies**: Graceful fallback when AI libraries unavailable
 
-### **5. Interactive CLI Interface**
+### **6. Interactive CLI Interface**
 
 ```python
 class ChatInterface:
@@ -443,11 +495,14 @@ All 4 phases of the migration from 3-layer to unified tool architecture complete
 - Test suite updated and passing
 
 ### **Architecture Benefits Achieved**
+- ✅ **Modular Organization**: 4 focused tool files replacing 970-line monolithic file
+- ✅ **Clean Separation**: Logical grouping by functionality (basic, search, comparison, utility)
 - ✅ **50% reduction** in tool complexity (3 layers → 8 unified tools)
 - ✅ **60% reduction** in dependencies (10+ packages → 4 core packages)
 - ✅ **100% elimination** of code duplication (single source of truth)
 - ✅ **Improved performance** with direct function calling
-- ✅ **Enhanced extensibility** with strategy pattern
+- ✅ **Enhanced maintainability** with focused, single-responsibility modules
+- ✅ **Better developer experience** with clear file organization
 
 ### **Current State** 
 - **Production Ready**: New architecture fully operational
