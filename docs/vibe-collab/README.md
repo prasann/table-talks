@@ -18,17 +18,17 @@ This directory contains the conceptual and technical documentation for TableTalk
 - Success metrics and future extensions
 - Current status and impact
 
-### 2. `design_document.md` 
-**Purpose**: Detailed technical design and implementation
+### 2. `ARCHITECTURE.md`
+**Purpose**: Comprehensive technical architecture documentation
 
 **Contents**:
-- Current unified architecture (ToolRegistry + Strategy Pattern)
-- Design philosophy and principles
-- Component details with code examples
-- Key design decisions and rationale
-- Function calling integration
-- Tool architecture and extensibility
-- Testing strategy and performance
+- Detailed system components and design (4-layer architecture)
+- Tool registry and strategy pattern implementation
+- Data flow and query processing details
+- Tool architecture with implementation patterns
+- Performance characteristics and scaling
+- Extension points and development guidelines
+- Migration status and benefits achieved
 
 ### 3. `migration_plan.md`
 **Purpose**: Complete migration documentation and lessons learned

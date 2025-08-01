@@ -64,12 +64,14 @@ python src/main.py
 
 ## 🏗️ Technical Documentation
 
-- **[Architecture Overview](docs/vibe-collab/design_document.md)** - Current technical design and implementation details
+- **[Architecture Overview](docs/vibe-collab/ARCHITECTURE.md)** - Comprehensive technical architecture documentation
+- **[Development Guide](docs/DEVELOPMENT.md)** - Setup and development guidelines
 - **[Development Plan](docs/vibe-collab/concept_and_plan.md)** - Project concept, vision, and implementation roadmap
 - **[Technical Documentation Guide](docs/vibe-collab/README.md)** - Overview of technical docs structure
 
 ## 📝 Development Notes
 
+- **[Migration History](docs/vibe-collab/migration_plan.md)** - Historical architecture migration details
 - **[Todo List](docs/todo.txt)** - Development tasks and ideas
 
 ## 🗂️ Project Structure
@@ -80,12 +82,18 @@ table-talk/
 ├── src/                         # Source code
 ├── docs/                        # Documentation
 │   ├── USAGE.md                 # User guide and examples
+│   ├── DEVELOPMENT.md           # Development setup and guidelines
 │   ├── TROUBLESHOOTING.md       # Common issues and solutions
 │   ├── todo.txt                 # Development notes
-│   └── vibe-collab/             # Technical architecture docs
+│   └── vibe-collab/             # Technical architecture docs (for GitHub Copilot)
 │       ├── README.md            # Technical docs overview
+│       ├── ARCHITECTURE.md      # Comprehensive technical architecture
 │       ├── concept_and_plan.md  # Project concept and roadmap
-│       └── design_document.md   # Current architecture details
+│       └── migration_plan.md    # Historical migration documentation
+├── scripts/                     # Setup and utility scripts
+├── tests/                       # Test files
+├── data/                        # Data files directory
+└── config/                      # Configuration files
 ├── scripts/                     # Setup and utility scripts
 ├── tests/                       # Test files
 ├── data/                        # Data files directory
