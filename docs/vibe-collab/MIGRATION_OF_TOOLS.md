@@ -604,4 +604,266 @@ class TableFormatter(BaseFormatter):
 
 ---
 
+## 🚀 **Phase 5: Semantic Enhancement Integration** 🆕
+
+**Start Date**: TBD  
+**Status**: 📋 **PLANNED**  
+**Duration**: ~3-4 hours (single phase implementation)  
+**Goal**: Add semantic search capabilities to existing tools without breaking changes
+
+### 📊 **Phase 5 Overview**
+
+**Motivation**: Current search is limited to exact substring matching. Users expect semantic understanding:
+- "customer ID" should find `customer_id`, `user_id`, `client_id`
+- "timestamps" should find `created_at`, `updated_at`, `date_added`
+- "find similar schemas" should understand conceptual similarity, not just exact column matches
+
+**Strategy**: Add optional semantic capabilities using SentenceTransformer (80MB model) as fallback enhancement to existing tools.
+
+### 🎯 **Phase 5 Goals**
+
+- ✅ **Backward Compatible**: All existing functionality preserved
+- ✅ **Optional Enhancement**: Semantic features opt-in via parameters
+- ✅ **Graceful Degradation**: Works without semantic dependencies
+- ✅ **High Impact**: Focus on 3 most valuable tools for semantic enhancement
+- ✅ **Performance**: Semantic search < 50ms, total query time < 2s
+
+### 📋 **Phase 5 Implementation Plan**
+
+#### **Step 5.1: Create Semantic Infrastructure**
+```
+src/tools/core/
+├── semantic_search.py      # NEW - Semantic search capabilities
+└── __init__.py            # Update exports
+```
+
+**New Components:**
+```python
+# src/tools/core/semantic_search.py
+class SemanticSearcher:
+    """Optional semantic search using SentenceTransformer."""
+    
+class SemanticSchemaAnalyzer:
+    """Semantic schema similarity and concept analysis."""
+    
+class SemanticConsistencyChecker:
+    """Detect semantic naming inconsistencies."""
+```
+
+**Features:**
+- ✅ **Optional Dependency**: Graceful fallback if `sentence-transformers` not installed
+- ✅ **Column Similarity**: Find semantically similar columns
+- ✅ **Schema Similarity**: Compare file schemas semantically  
+- ✅ **Concept Grouping**: Group columns by semantic concepts
+- ✅ **Naming Consistency**: Detect similar concepts with different names
+
+#### **Step 5.2: Enhance High-Impact Tools (3 Tools)**
+
+##### **5.2.1 SearchMetadataTool Enhancement** (Highest Impact)
+```python
+# Current: search_metadata(search_term, search_type="column")
+# Enhanced: search_metadata(search_term, search_type="column", semantic=False)
+
+def execute(self, search_term: str, search_type: str = "column", semantic: bool = False):
+    if semantic and self.semantic_searcher.available:
+        return self._semantic_search(search_term, search_type)
+    else:
+        return self._traditional_search(search_term, search_type)  # Existing logic
+```
+
+**Benefits:**
+- ✅ `search_metadata("customer ID", "column", semantic=True)` → finds `customer_id`, `user_id`, `client_id`
+- ✅ `search_metadata("timestamps", "column", semantic=True)` → finds all date/time columns
+- ✅ Backward compatible: `semantic=False` by default
+
+##### **5.2.2 FindRelationshipsTool Enhancement** (High Impact)
+```python
+# Current: find_relationships(analysis_type="common_columns", threshold=2)
+# Enhanced: find_relationships(analysis_type="similar_schemas", threshold=0.7, semantic=True)
+
+def execute(self, analysis_type: str = "common_columns", threshold: float = 2, semantic: bool = False):
+    if analysis_type == "similar_schemas" and semantic:
+        return self.semantic_analyzer.find_similar_schemas(threshold)
+    elif analysis_type == "semantic_groups" and semantic:
+        return self.semantic_analyzer.group_columns_by_concept()
+    else:
+        return self._traditional_analysis(analysis_type, threshold)  # Existing logic
+```
+
+**New Analysis Types:**
+- ✅ `"similar_schemas"` - Semantic schema similarity analysis
+- ✅ `"semantic_groups"` - Group columns by concepts (IDs, timestamps, names, etc.)
+- ✅ `"concept_evolution"` - Track how concepts change across files
+
+##### **5.2.3 DetectInconsistenciesTool Enhancement** (High Impact)
+```python
+# Current: detect_inconsistencies(check_type="data_types")
+# Enhanced: detect_inconsistencies(check_type="semantic_naming", threshold=0.8)
+
+def execute(self, check_type: str = "data_types", threshold: float = 0.8):
+    if check_type == "semantic_naming":
+        return self.semantic_checker.find_naming_inconsistencies(threshold)
+    elif check_type == "concept_consistency":
+        return self.semantic_checker.check_concept_consistency()
+    else:
+        return self._traditional_checks(check_type)  # Existing logic
+```
+
+**New Check Types:**
+- ✅ `"semantic_naming"` - Find similar columns with different names (`customer_id` vs `cust_id`)
+- ✅ `"concept_consistency"` - Ensure same concepts use consistent data types
+- ✅ `"abbreviation_detection"` - Detect abbreviations vs full names
+
+#### **Step 5.3: Update Dependencies and Requirements**
+```python
+# requirements.txt additions:
+sentence-transformers>=2.2.0  # Optional: for semantic search
+scikit-learn>=1.0.0          # Optional: for similarity calculations (usually included with sentence-transformers)
+
+# Graceful fallback in all semantic components:
+try:
+    from sentence_transformers import SentenceTransformer
+    SEMANTIC_AVAILABLE = True
+except ImportError:
+    SEMANTIC_AVAILABLE = False
+```
+
+#### **Step 5.4: Tool Registry Integration**
+```python
+# src/tools/tool_registry.py - Update function schemas
+class ToolRegistry:
+    def _register_tools(self):
+        # Update 3 enhanced tools with new parameters
+        return {
+            'search_metadata': SearchMetadataTool(self.store),     # +semantic parameter
+            'find_relationships': FindRelationshipsTool(self.store), # +semantic parameter  
+            'detect_inconsistencies': DetectInconsistenciesTool(self.store), # +new check types
+            # ... other 5 tools unchanged
+        }
+```
+
+### 🎯 **Phase 5 Success Criteria**
+
+#### **Functional Requirements:**
+- ✅ **Backward Compatibility**: All existing queries work exactly the same
+- ✅ **Semantic Search**: `search_metadata("customer ID", semantic=True)` finds `customer_id`
+- ✅ **Schema Similarity**: `find_relationships("similar_schemas", semantic=True)` works
+- ✅ **Naming Detection**: `detect_inconsistencies("semantic_naming")` finds inconsistencies
+- ✅ **Graceful Fallback**: Works without semantic dependencies installed
+
+#### **Performance Requirements:**
+- ✅ **Semantic Model Load**: < 5 seconds on first use
+- ✅ **Semantic Search**: < 50ms per query
+- ✅ **Total Query Time**: < 2 seconds end-to-end
+- ✅ **Memory Usage**: < 200MB additional with semantic model loaded
+
+#### **User Experience:**
+- ✅ **Natural Queries**: `"find customer related columns"` works semantically
+- ✅ **Schema Analysis**: `"find files with similar structures"` uses semantic understanding
+- ✅ **Quality Detection**: `"detect naming inconsistencies"` finds semantic duplicates
+- ✅ **No Breaking Changes**: Existing users see no difference unless they opt-in
+
+### 🛠️ **Implementation Details**
+
+#### **Semantic Model Selection:**
+- **Model**: `all-MiniLM-L6-v2` (80MB, 384 dimensions)
+- **Justification**: Best balance of size, speed, and accuracy for column name similarity
+- **Similarity Threshold**: 0.6-0.8 (tunable per use case)
+- **Caching**: Cache embeddings for column names to avoid recomputation
+
+#### **Integration Patterns:**
+```python
+# Pattern 1: Fallback Enhancement
+def search(self, search_term: str, semantic: bool = False):
+    # Try traditional search first
+    results = self._traditional_search(search_term)
+    
+    # If no results and semantic available, try semantic
+    if not results and semantic and self.semantic_available:
+        similar_columns = self.semantic_searcher.find_similar(search_term)
+        for column in similar_columns:
+            results.extend(self._traditional_search(column))
+    
+    return results
+
+# Pattern 2: New Analysis Types
+def analyze(self, analysis_type: str, semantic: bool = False):
+    if analysis_type in ["similar_schemas", "semantic_groups"] and semantic:
+        return self.semantic_analyzer.analyze(analysis_type)
+    else:
+        return self.traditional_analyzer.analyze(analysis_type)
+```
+
+### 📊 **Expected Impact**
+
+#### **Query Improvements:**
+```
+Before: "customer ID" → No results found
+After:  "customer ID" → Finds customer_id, user_id, client_id columns
+
+Before: "find similar schemas" → Only exact column name matches  
+After:  "find similar schemas" → Semantic understanding of column purposes
+
+Before: "detect inconsistencies" → Only data type mismatches
+After:  "detect inconsistencies" → Finds customer_id vs cust_id naming issues
+```
+
+#### **Architecture Benefits:**
+- ✅ **Enhanced Intelligence**: True semantic understanding vs string matching
+- ✅ **User Productivity**: Natural language queries work better
+- ✅ **Data Quality**: Better detection of schema inconsistencies
+- ✅ **Future Ready**: Foundation for more advanced semantic analysis
+
+### 📝 **Phase 5 Documentation Plan**
+
+#### **New Documentation:**
+```markdown
+## docs/vibe-collab/phase5_semantic_enhancement.md
+- Semantic enhancement design and implementation
+- Model selection rationale  
+- Performance characteristics
+- Usage examples and benefits
+
+## docs/SEMANTIC_SEARCH.md (new file)
+- User guide for semantic capabilities
+- Examples of semantic vs traditional search
+- Performance tuning and troubleshooting
+- Advanced semantic analysis patterns
+
+## Update docs/ARCHITECTURE.md
+- Add semantic search components
+- Document optional dependencies
+- Update tool capability matrix
+
+## Update docs/USAGE.md  
+- Add semantic search examples
+- Document new parameters (semantic=True)
+- Show enhanced query capabilities
+```
+
+#### **Developer Documentation:**
+```markdown
+## Update docs/DEVELOPMENT.md
+- How to add new semantic analyzers
+- Extending semantic search capabilities
+- Testing semantic components
+- Performance optimization guidelines
+
+## docs/TROUBLESHOOTING.md updates
+- Semantic dependency installation issues
+- Model download and caching problems
+- Performance optimization tips
+- Fallback behavior debugging
+```
+
+### ⏭️ **Next Steps After Phase 5**
+
+1. **Monitor Usage**: Track which semantic features are most used
+2. **Performance Optimization**: Cache embeddings, optimize model loading
+3. **Additional Models**: Consider domain-specific models for specialized datasets
+4. **Advanced Analysis**: Semantic relationship detection, concept evolution tracking
+5. **User Feedback**: Gather feedback on semantic search accuracy and usefulness
+
+---
+
 **Next Steps**: Start with Phase 1, implementing the base infrastructure and highest-value, lowest-risk tools first.
