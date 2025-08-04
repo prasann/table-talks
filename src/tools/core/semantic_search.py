@@ -9,8 +9,6 @@ import logging
 import warnings
 from typing import List, Dict, Optional, Tuple, Set
 from dataclasses import dataclass
-from sentence_transformers import SentenceTransformer
-import numpy as np
 
 logger = logging.getLogger(__name__)
 
@@ -34,19 +32,31 @@ class SemanticSearcher:
         self._column_embeddings_cache = {}
         self._model_name = "all-MiniLM-L6-v2"  # 80MB, fast, good for short texts
         self._available = True  # Track if semantic search is available
+        self._initialization_attempted = False  # Track if we've tried to load the model
         
-        # Initialize model on first use
-        self._initialize_model()
+        # DO NOT initialize model here - defer until first use for faster startup
     
     @property
     def available(self) -> bool:
-        """Check if semantic search is available."""
+        """Check if semantic search is available (lazy check)."""
+        if not self._initialization_attempted:
+            # We don't know yet, but assume it's available until we try
+            return self._available
         return self._available and self.model is not None
     
+    def _ensure_model_loaded(self):
+        """Ensure the semantic model is loaded, loading it on first use."""
+        if self.model is None and not self._initialization_attempted:
+            self._initialize_model()
+    
     def _initialize_model(self):
-        """Initialize the semantic model."""
-        if self.model is None:
+        """Initialize the semantic model on first use."""
+        if not self._initialization_attempted:
+            self._initialization_attempted = True
             try:
+                # Import heavy dependencies only when needed
+                from sentence_transformers import SentenceTransformer
+                
                 logger.info(f"Loading semantic model: {self._model_name}")
                 # Suppress FutureWarning about encoder_attention_mask deprecation
                 with warnings.catch_warnings():
@@ -73,11 +83,12 @@ class SemanticSearcher:
         Returns:
             List of SemanticMatch objects sorted by similarity
         """
+        # Ensure model is loaded before use
+        self._ensure_model_loaded()
+        
         if not self.available:
             logger.warning("Semantic search not available, returning empty results")
             return []
-        
-        self._initialize_model()
         
         # Get embeddings for search term with warning suppression
         with warnings.catch_warnings():
@@ -103,6 +114,9 @@ class SemanticSearcher:
         
         if not column_embeddings:
             return []
+        
+        # Import numpy only when needed for calculations
+        import numpy as np
         
         # Calculate similarities
         column_embeddings = np.array(column_embeddings)
@@ -159,6 +173,9 @@ class SemanticSearcher:
         Returns:
             Dictionary mapping concept names to lists of matching columns
         """
+        # Ensure model is loaded before use
+        self._ensure_model_loaded()
+        
         if not self.available:
             logger.warning("Semantic search not available, returning empty concept groups")
             return {}
