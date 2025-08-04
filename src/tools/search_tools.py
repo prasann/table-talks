@@ -25,7 +25,7 @@ class SearchMetadataTool(BaseTool):
             "properties": {
                 "search_term": {
                     "type": "string", 
-                    "description": "Term to search for"
+                    "description": "Term to search for (required - cannot be empty)"
                 },
                 "search_type": {
                     "type": "string",
@@ -42,9 +42,13 @@ class SearchMetadataTool(BaseTool):
             "required": ["search_term"]
         }
     
-    def execute(self, search_term: str, search_type: str = "column", semantic: bool = False) -> str:
+    def execute(self, search_term: str = None, search_type: str = "column", semantic: bool = False) -> str:
         """Search across metadata with optional semantic enhancement."""
         try:
+            # Validate required parameter
+            if not search_term:
+                return "Error: search_term is required. Please provide a term to search for."
+            
             # Try semantic search first if enabled and available
             if semantic and search_type == "column" and self.semantic_searcher.available:
                 return self._semantic_search(search_term, search_type)

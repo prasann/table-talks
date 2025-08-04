@@ -120,7 +120,10 @@ class ChatInterface:
             return
         
         try:
-            response = self.agent.query(query)
+            # Show loading indicator while processing query
+            with self.formatter.create_loading_indicator("🤖 Analyzing your query"):
+                response = self.agent.query(query)
+            
             self.formatter.print_agent_response(response)
         except Exception as e:
             self.formatter.print_error("Error processing query", str(e))

@@ -120,9 +120,21 @@ class TextFormatter(BaseFormatter):
         
         elif analysis_type == 'similar_schemas':
             for item in results:
-                result.append(f"🔗 {item['file1']} ↔ {item['file2']}")
-                result.append(f"  Common columns: {item['common_columns']}")
-                result.append(f"  Files have {item['file1_total']} and {item['file2_total']} columns total")
+                if 'group_files' in item:
+                    # Handle new format with group_files
+                    files = item['group_files']
+                    if len(files) >= 2:
+                        result.append(f"🔗 {' ↔ '.join(files)}")
+                        result.append(f"  Common columns ({item.get('common_column_count', len(item.get('common_columns', [])))}): {', '.join(item.get('common_columns', []))}")
+                        result.append(f"  Similarity score: {item.get('similarity_score', 'N/A')}")
+                    else:
+                        result.append(f"🔗 Group: {', '.join(files)}")
+                        result.append(f"  Common columns: {', '.join(item.get('common_columns', []))}")
+                else:
+                    # Handle legacy format with file1/file2 (for backward compatibility)
+                    result.append(f"🔗 {item['file1']} ↔ {item['file2']}")
+                    result.append(f"  Common columns: {item['common_columns']}")
+                    result.append(f"  Files have {item['file1_total']} and {item['file2_total']} columns total")
                 result.append("")
         
         elif analysis_type == 'data_types':

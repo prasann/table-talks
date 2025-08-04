@@ -13,9 +13,14 @@ try:
     from rich.markup import escape
     from rich.syntax import Syntax
     from rich.rule import Rule
+    from rich.status import Status
+    import threading
+    import time
     RICH_AVAILABLE = True
 except ImportError:
     RICH_AVAILABLE = False
+    import threading
+    import time
 
 
 class CLIFormatter:
@@ -265,3 +270,60 @@ Query Examples:
             )
         else:
             return None
+    
+    def create_loading_indicator(self, message="Processing query"):
+        """Create a loading indicator for LLM queries."""
+        if self.rich_enabled:
+            return LoadingIndicator(self.console, message)
+        else:
+            return SimpleLoadingIndicator(message)
+
+
+class LoadingIndicator:
+    """Rich-based loading indicator with spinner."""
+    
+    def __init__(self, console, message="Processing"):
+        self.console = console
+        self.message = message
+        self.status = None
+    
+    def __enter__(self):
+        if self.console:
+            self.status = Status(self.message, console=self.console, spinner="dots")
+            self.status.start()
+        return self
+    
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if self.status:
+            self.status.stop()
+
+
+class SimpleLoadingIndicator:
+    """Simple fallback loading indicator without rich."""
+    
+    def __init__(self, message="Processing"):
+        self.message = message
+        self.active = False
+        self.thread = None
+    
+    def __enter__(self):
+        self.active = True
+        self.thread = threading.Thread(target=self._animate)
+        self.thread.daemon = True
+        self.thread.start()
+        return self
+    
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.active = False
+        if self.thread:
+            self.thread.join(timeout=1)
+        print()  # New line after animation
+    
+    def _animate(self):
+        """Simple dot animation."""
+        frames = ["   ", ".  ", ".. ", "...", " ..", "  .", "   "]
+        i = 0
+        while self.active:
+            print(f"\r{self.message}{frames[i % len(frames)]}", end="", flush=True)
+            time.sleep(0.3)
+            i += 1

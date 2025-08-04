@@ -78,6 +78,70 @@ class RelationshipAnalyzer(BaseAnalyzer):
     def _find_similar_schemas_pandas(self, threshold: int) -> List[Dict[str, Any]]:
         """Pandas implementation for finding similar schemas."""
         return self._find_similar_schemas_basic(threshold)
+    
+    def _find_similar_schemas_basic(self, threshold: int) -> List[Dict[str, Any]]:
+        """Basic implementation for finding files with similar schema structures."""
+        try:
+            files = self.store.list_all_files()
+            if len(files) < 2:
+                return []
+
+            # Get schemas for all files
+            file_schemas = {}
+            for file_info in files:
+                schema = self.store.get_file_schema(file_info['file_name'])
+                if schema:
+                    file_schemas[file_info['file_name']] = set(col['column_name'] for col in schema)
+
+            # Find files with similar schemas
+            similar_groups = []
+            processed_files = set()
+
+            for file1, schema1 in file_schemas.items():
+                if file1 in processed_files:
+                    continue
+
+                similar_files = [file1]
+
+                for file2, schema2 in file_schemas.items():
+                    if file2 == file1 or file2 in processed_files:
+                        continue
+
+                    # Calculate similarity (Jaccard similarity)
+                    intersection = len(schema1 & schema2)
+                    union = len(schema1 | schema2)
+
+                    if union > 0:
+                        similarity = intersection / union
+
+                        # Use threshold as percentage (e.g., threshold=3 means 30% similarity)
+                        similarity_threshold = threshold / 10.0 if threshold <= 10 else 0.3
+
+                        if similarity >= similarity_threshold:
+                            similar_files.append(file2)
+
+                if len(similar_files) > 1:
+                    # Calculate common columns
+                    common_columns = file_schemas[similar_files[0]]
+                    for similar_file in similar_files[1:]:
+                        common_columns &= file_schemas[similar_file]
+
+                    similar_groups.append({
+                        'group_files': similar_files,
+                        'common_columns': list(common_columns),
+                        'common_column_count': len(common_columns),
+                        'similarity_score': round(len(common_columns) / max(len(file_schemas[f]) for f in similar_files), 2)
+                    })
+
+                    # Mark files as processed
+                    for file in similar_files:
+                        processed_files.add(file)
+
+            return similar_groups
+        
+        except Exception as e:
+            self.logger.error(f"Error in _find_similar_schemas_basic: {str(e)}")
+            return []
 
 
 class ConsistencyChecker(BaseAnalyzer):
