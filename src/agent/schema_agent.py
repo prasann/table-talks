@@ -33,6 +33,8 @@ class SchemaAgent:
             raise ValueError(f"Model {model_name} doesn't support function calling. Please use a function calling enabled model like phi4-mini-fc")
             
         self.logger.info(f"SchemaAgent initialized with function calling mode for model: {model_name}")
+        # Detailed initialization logged only in debug mode
+        self.logger.debug(f"Base URL: {base_url}, Tool registry initialized with {len(self.tool_registry.tools)} tools")
     
     def _detect_function_calling(self) -> bool:
         """Detect if model supports native function calling."""
@@ -50,16 +52,17 @@ class SchemaAgent:
     
     def query(self, user_query: str) -> str:
         """Process a user query using function calling only."""
-        self.logger.info(f"Processing query with function calling: {user_query[:100]}...")
+        # Log only the essential query info
+        self.logger.debug(f"Processing query with function calling: {user_query[:100]}...")
         
         try:
             result = self._process_with_function_calling(user_query)
-            self.logger.debug(f"Query result length: {len(result)} characters")
+            # No need to log result length - session logger handles this
             return result
             
         except Exception as e:
             self.logger.error(f"Query processing failed: {e}")
-            return f"I encountered an error: {e}\n\nPlease try rephrasing your question."
+            raise
     
     def _process_with_function_calling(self, query: str) -> str:
         """Process query using native Ollama function calling."""

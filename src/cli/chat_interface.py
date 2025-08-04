@@ -9,6 +9,7 @@ from pathlib import Path
 from ..metadata.metadata_store import MetadataStore
 from ..metadata.schema_extractor import SchemaExtractor
 from ..agent.schema_agent import SchemaAgent
+from ..utils.session_logger import QuerySessionLogger
 from .rich_formatter import CLIFormatter
 
 
@@ -19,7 +20,13 @@ class ChatInterface:
         """Initialize the chat interface."""
         self.config = config
         self.formatter = CLIFormatter()  # Rich formatter for all CLI output
-        self.logger = logging.getLogger("tabletalk.chat_interface")
+        
+        # Initialize session logger (clean, structured logging)
+        verbose_logging = config.get('logging', {}).get('verbose', False)
+        self.session_logger = QuerySessionLogger(
+            log_file=config.get('logging', {}).get('file', 'logs/tabletalk.log'),
+            verbose=verbose_logging
+        )
         
         # Initialize components
         self.metadata_store = MetadataStore(config['database']['path'])
@@ -81,9 +88,11 @@ class ChatInterface:
                     
             except KeyboardInterrupt:
                 self.formatter.print_goodbye()
+                self.session_logger.log_session_end()
                 break
             except EOFError:
                 self.formatter.print_goodbye()
+                self.session_logger.log_session_end()
                 break
 
     def _handle_command(self, command):
@@ -93,6 +102,7 @@ class ChatInterface:
         
         if cmd in ['/exit', '/quit']:
             self.formatter.print_goodbye()
+            self.session_logger.log_session_end()
             self.running = False
         elif cmd == '/help':
             self._show_help()
@@ -116,22 +126,21 @@ class ChatInterface:
             self.formatter.print_warning("Agent not available. Please try /scan to analyze files first.")
             return
         
-        # Log query start
-        self.logger.info(f"START: Processing user query: {query}")
+        # Log query start with session logger
+        self.session_logger.log_query_start(query)
         
         try:
             # Show loading indicator while processing query
             with self.formatter.create_loading_indicator("🤖 Analyzing your query"):
                 response = self.agent.query(query)
             
-            # Log query completion
-            response_preview = response[:100] + "..." if len(response) > 100 else response
-            self.logger.info(f"END: Query processed successfully. Response length: {len(response)} chars. Preview: {response_preview}")
+            # Log successful completion (TODO: get tools_used from agent)
+            self.session_logger.log_query_success(response, tools_used=["get_files"])  # Placeholder
             
             self.formatter.print_agent_response(response)
         except Exception as e:
             # Log query error
-            self.logger.error(f"END: Query processing failed: {str(e)}")
+            self.session_logger.log_query_error(str(e))
             self.formatter.print_error("Error processing query", str(e))
 
     def _scan_directory(self, directory):
@@ -156,6 +165,8 @@ class ChatInterface:
                 except Exception as e:
                     self.formatter.print_scan_error(file_path.name, str(e))
         
+        # Log scan operation with session logger
+        self.session_logger.log_scan_operation(str(directory_path), file_count)
         self.formatter.print_scan_complete(file_count)
 
     def _show_status(self):

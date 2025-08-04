@@ -147,7 +147,6 @@ def main():
     # Set up centralized logging (debug to files, warnings to console)
     log_level = config.get('logging', {}).get('level', 'INFO')
     setup_logger(level=getattr(logging, log_level.upper()))
-    logger = logging.getLogger("tabletalk")
     
     # Check Ollama connection
     ollama_url = config['llm']['base_url']
@@ -155,9 +154,8 @@ def main():
         formatter.print_warning(f"Cannot connect to Ollama at {ollama_url}")
         formatter.print_info("Natural language queries will not be available.")
         formatter.print_info("Start Ollama with: ollama serve")
-        logger.warning(f"Ollama connection failed at {ollama_url}")
     else:
-        logger.info(f"Ollama connection successful at {ollama_url}")
+        pass  # Connection success will be logged by session logger in ChatInterface
     
     formatter.print_rule("Initialization Complete")
     
@@ -169,7 +167,7 @@ def main():
     except KeyboardInterrupt:
         formatter.print_goodbye()
     except Exception as e:
-        logger.error(f"Fatal error: {str(e)}")
+        logging.getLogger("tabletalk").error(f"Fatal error: {str(e)}")
         formatter.print_error("Fatal error", str(e))
         sys.exit(1)
 
