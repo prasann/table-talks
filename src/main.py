@@ -13,6 +13,7 @@ if src_dir not in sys.path:
 
 # Always use absolute imports from src
 from cli.chat_interface import ChatInterface
+from cli.rich_formatter import CLIFormatter
 from utils.logger import setup_logger
 
 
@@ -47,11 +48,12 @@ def load_config() -> dict:
         }
 
 
-def check_ollama_connection(base_url: str) -> bool:
+def check_ollama_connection(base_url: str, formatter: CLIFormatter) -> bool:
     """Check if Ollama is running and accessible with Phi-4 model.
     
     Args:
         base_url: Ollama server URL
+        formatter: CLI formatter for consistent output
         
     Returns:
         True if Ollama is accessible, False otherwise
@@ -72,14 +74,13 @@ def check_ollama_connection(base_url: str) -> bool:
         phi4_fc_available = any("phi4-mini-fc" in name.lower() for name in model_names)
         
         if phi4_fc_available:
-            print("✅ Phi-4 function calling model found!")
+            formatter.print_success("Phi-4 function calling model found!")
         elif phi_available:
-            print("⚠️  Phi model found but no function calling support.")
-            print("   Run ./scripts/setup_phi4_function_calling.sh for better performance")
+            formatter.print_warning("Phi model found but no function calling support.")
+            formatter.print_info("Run ./scripts/setup_phi4_function_calling.sh for better performance")
         else:
-            print("⚠️  Warning: No Phi model found. Basic mode only.")
-            print("   Consider running: ollama pull phi3:mini")
-        print()
+            formatter.print_warning("Warning: No Phi model found. Basic mode only.")
+            formatter.print_info("Consider running: ollama pull phi3:mini")
             
         return True
     except Exception:
@@ -139,7 +140,9 @@ def run_tabletalk_commands(commands):
 
 def main():
     """Main entry point for TableTalk."""
-    print("🗣️  Starting TableTalk...")
+    # Initialize formatter for startup messages
+    formatter = CLIFormatter()
+    formatter.print_startup("Starting TableTalk...")
     
     # Load configuration
     config = load_config()
@@ -151,14 +154,15 @@ def main():
     
     # Check Ollama connection
     ollama_url = config['llm']['base_url']
-    if not check_ollama_connection(ollama_url):
-        print(f"⚠️  Warning: Cannot connect to Ollama at {ollama_url}")
-        print("   Natural language queries will not be available.")
-        print("   Start Ollama with: ollama serve")
-        print()
+    if not check_ollama_connection(ollama_url, formatter):
+        formatter.print_warning(f"Cannot connect to Ollama at {ollama_url}")
+        formatter.print_info("Natural language queries will not be available.")
+        formatter.print_info("Start Ollama with: ollama serve")
         logger.warning(f"Ollama connection failed at {ollama_url}")
     else:
         logger.info(f"Ollama connection successful at {ollama_url}")
+    
+    formatter.print_rule("Initialization Complete")
     
     try:
         # Initialize and start chat interface
@@ -166,10 +170,10 @@ def main():
         chat.start()
         
     except KeyboardInterrupt:
-        print("\n👋 Goodbye!")
+        formatter.print_goodbye()
     except Exception as e:
         logger.error(f"Fatal error: {str(e)}")
-        print(f"❌ Fatal error: {str(e)}")
+        formatter.print_error("Fatal error", str(e))
         sys.exit(1)
 
 

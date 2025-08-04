@@ -13,6 +13,7 @@ if src_dir not in sys.path:
 from metadata.metadata_store import MetadataStore
 from metadata.schema_extractor import SchemaExtractor
 from agent.schema_agent import SchemaAgent
+from .rich_formatter import CLIFormatter
 
 
 class ChatInterface:
@@ -21,6 +22,7 @@ class ChatInterface:
     def __init__(self, config):
         """Initialize the chat interface."""
         self.config = config
+        self.formatter = CLIFormatter()  # Rich formatter for all CLI output
         
         # Initialize components
         self.metadata_store = MetadataStore(config['database']['path'])
@@ -40,26 +42,33 @@ class ChatInterface:
             # Get status to display the right message
             status = self.agent.get_status()
             if status.get('function_calling'):
-                print(f"🚀 Function calling mode enabled with {status['tools_available']} tools!")
-                print(f"📊 Available tools: {', '.join(status['tool_names'][:4])}...")
+                self.formatter.print_status({
+                    'mode': 'Function Calling',
+                    'tools_count': status['tools_available'],
+                    'tools_list': status['tool_names'],
+                    'llm_available': True,
+                    'function_calling': True,
+                    'model_name': status.get('model_name', '')
+                })
             else:
-                print("❌ Function calling not supported - please use phi4-mini-fc model")
+                self.formatter.print_error("Function calling not supported - please use phi4-mini-fc model")
                 
         except Exception as e:
-            print(f"⚠️  LLM agent not available: {e}")
+            self.formatter.print_warning(f"LLM agent not available: {e}")
             self.agent = None
         
         self.running = False
 
     def start(self):
         """Start the interactive CLI."""
-        print("🗣️  TableTalk - Conversational data exploration")
-        print("📁 Commands: /scan <dir>, /help, /status, /exit")
+        self.formatter.print_welcome()
+        
         if self.agent and self.agent.check_llm_availability():
-            print("✨ Intelligent mode: Ask complex questions and get smart insights!")
+            self.formatter.print_mode_info(intelligent_mode=True)
         else:
-            print("📊 Basic mode: Ask simple questions about your data")
-        print()
+            self.formatter.print_mode_info(intelligent_mode=False)
+        
+        self.formatter.print_rule()
         
         self.running = True
         while self.running:
@@ -74,10 +83,10 @@ class ChatInterface:
                     self._handle_query(user_input)
                     
             except KeyboardInterrupt:
-                print("\\nGoodbye!")
+                self.formatter.print_goodbye()
                 break
             except EOFError:
-                print("\\nGoodbye!")
+                self.formatter.print_goodbye()
                 break
 
     def _handle_command(self, command):
@@ -86,7 +95,7 @@ class ChatInterface:
         cmd = parts[0].lower()
         
         if cmd in ['/exit', '/quit']:
-            print("Goodbye!")
+            self.formatter.print_goodbye()
             self.running = False
         elif cmd == '/help':
             self._show_help()
@@ -94,37 +103,37 @@ class ChatInterface:
             self._show_status()
         elif cmd == '/scan':
             if len(parts) < 2:
-                print("Usage: /scan <directory>")
+                self.formatter.print_error("Usage: /scan <directory>")
                 return
             self._scan_directory(parts[1])
         elif cmd == '/strategy':
             # Remove strategy switching - SchemaAgent auto-detects
             self._show_agent_info()
         else:
-            print(f"Unknown command: {cmd}")
-            print("Use /help for available commands")
+            self.formatter.print_error(f"Unknown command: {cmd}")
+            self.formatter.print_info("Use /help for available commands")
 
     def _handle_query(self, query):
         """Handle natural language queries."""
         if not self.agent:
-            print("Agent not available. Please try /scan to analyze files first.")
+            self.formatter.print_warning("Agent not available. Please try /scan to analyze files first.")
             return
         
         try:
             response = self.agent.query(query)
-            print(response)
+            self.formatter.print_agent_response(response)
         except Exception as e:
-            print(f"Error processing query: {e}")
+            self.formatter.print_error("Error processing query", str(e))
 
     def _scan_directory(self, directory):
         """Scan directory for files."""
         directory_path = Path(directory).resolve()
         
         if not directory_path.exists():
-            print(f"Directory not found: {directory}")
+            self.formatter.print_error(f"Directory not found: {directory}")
             return
         
-        print(f"Scanning: {directory_path}")
+        self.formatter.print_scan_start(str(directory_path))
         
         file_count = 0
         for file_path in directory_path.rglob("*"):
@@ -133,41 +142,49 @@ class ChatInterface:
                     schema_info = self.schema_extractor.extract_from_file(str(file_path))
                     if schema_info:
                         self.metadata_store.store_schema_info(schema_info)
-                        print(f"✓ {file_path.name}: {len(schema_info)} columns")
+                        self.formatter.print_scan_progress(file_path.name, len(schema_info))
                         file_count += 1
                 except Exception as e:
-                    print(f"✗ {file_path.name}: {e}")
+                    self.formatter.print_scan_error(file_path.name, str(e))
         
-        print(f"Scan complete: {file_count} files processed")
+        self.formatter.print_scan_complete(file_count)
 
     def _show_status(self):
         """Show current status."""
+        status_data = {}
+        
         if self.agent:
             status = self.agent.get_status()
-            print("📊 System Status:")
-            print(f"   Agent: {status.get('agent_type', 'Unknown')} ({status.get('mode', 'Unknown')})")
-            print(f"   LLM Available: {'✅' if status['llm_available'] else '❌'}")
-            print(f"   Function Calling: {'✅' if status.get('function_calling') else '❌'}")
-            if status['llm_available'] or status.get('function_calling'):
-                print(f"   Model: {status['model_name']}")
-                print(f"   URL: {status['base_url']}")
+            status_data.update({
+                'mode': f"{status.get('agent_type', 'Unknown')} ({status.get('mode', 'Unknown')})",
+                'llm_available': status['llm_available'],
+                'function_calling': status.get('function_calling', False),
+                'model_name': status['model_name']
+            })
         
         files = self.metadata_store.list_all_files()
-        print(f"   Files Scanned: {len(files)}")
+        status_data['files_scanned'] = len(files)
+        
+        self.formatter.print_status(status_data)
     
     def _show_agent_info(self):
         """Show current agent information."""
         if not self.agent:
-            print("Agent not available")
+            self.formatter.print_warning("Agent not available")
             return
             
         status = self.agent.get_status()
-        print("🤖 SchemaAgent Status:")
-        print(f"   Mode: {status.get('mode', 'Unknown')}")
-        print(f"   Model: {status['model_name']}")
-        print(f"   LLM Available: {'✅' if status['llm_available'] else '❌'}")
-        print(f"   Function Calling: {'✅' if status.get('function_calling') else '❌'}")
-        print(f"   Capabilities: {', '.join(status.get('capabilities', []))}")
+        agent_data = {
+            'mode': status.get('mode', 'Unknown'),
+            'model_name': status['model_name'],
+            'llm_available': status['llm_available'],
+            'function_calling': status.get('function_calling', False)
+        }
+        
+        if 'capabilities' in status:
+            agent_data['capabilities'] = ', '.join(status['capabilities'])
+        
+        self.formatter.print_status(agent_data)
     
     def _show_strategies(self):
         """Show available strategies (deprecated - keeping for compatibility)."""
@@ -175,24 +192,9 @@ class ChatInterface:
     
     def _switch_strategy(self, strategy_type):
         """Switch strategy (deprecated - SchemaAgent auto-detects)."""
-        print("⚠️  Strategy switching is no longer needed - SchemaAgent auto-detects capabilities!")
+        self.formatter.print_warning("Strategy switching is no longer needed - SchemaAgent auto-detects capabilities!")
         self._show_agent_info()
 
     def _show_help(self):
         """Show help message."""
-        print("""
-TableTalk Commands:
-  /scan <directory>  - Scan files for schema information
-  /status            - Show system status
-  /strategy          - Show agent information
-  /help              - Show this help
-  /exit              - Exit TableTalk
-
-Start by scanning a directory: /scan data/
-
-Query Examples:
-  "Show me the customers table"
-  "What columns are in orders?"
-  "How many rows are in each file?"
-  "Show me tables with email addresses"
-        """.strip())
+        self.formatter.print_command_help()
