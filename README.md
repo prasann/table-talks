@@ -1,6 +1,6 @@
-# � TableTalk
+# 📊 TableTalk
 
-**TableTalk** is a local-first data schema explorer that lets you chat with your CSV and Parquet files using natural language, powered by Phi-3 for intelligent query understanding.
+**TableTalk** is a local-first data schema explorer that lets you chat with your CSV and Parquet files using natural language.
 
 ## 🚀 Quick Start
 
@@ -10,101 +10,52 @@ python -m venv tabletalk-env
 source tabletalk-env/bin/activate  # macOS/Linux
 pip install -r requirements.txt
 
-# 2. Install Ollama and setup function calling
+# 2. Install Ollama and setup models
 curl -fsSL https://ollama.ai/install.sh | sh
 ollama serve
-
-# For basic functionality (any model works)
-ollama pull phi3:mini
-
-# For advanced function calling (recommended)
 ./scripts/setup_phi4_function_calling.sh
 
 # 3. Start TableTalk
-python src/main.py
+python tabletalk.py
 ```
 
-## ✨ Features
+## ✨ What You Can Do
 
-- **🗣️ Natural Language**: Ask questions in plain English about your data
-- **🤖 Smart Analysis**: AI-powered query understanding and tool selection
-- **🔒 Privacy-First**: All processing happens locally on your machine
-- **⚡ Fast & Simple**: Quick responses with intelligent fallback
-- **📁 Multi-Format**: Supports CSV and Parquet files
+- **Ask questions**: "What files do we have?", "Find data quality issues"  
+- **Explore schemas**: "Show me the customers schema", "What columns are shared?"
+- **Semantic search**: "Find user identifiers", "Show me timestamp columns"
+- **Data quality**: "Check for type mismatches", "Find naming inconsistencies"
 
-## 💬 Example Usage
+## 💬 Example Session
 
 ```bash
-📊 TableTalk - Your Data Schema Explorer
-
 > scan
 🔍 Scanning data files... ✅ Found 4 files
 
 > What files do we have?
-📁 Available Files:
-• customers.csv (6 columns, 1.2KB)
-• orders.csv (5 columns, 2.1KB)
+📁 customers.csv (6 columns), orders.csv (5 columns)
 
-> Find any data quality issues
-🔍 Data Quality Analysis:
-• customer_id: int64 vs object type mismatch
-• Column naming variations: customer_id vs cust_id
+> Find any data quality issues  
+⚠️ customer_id: int64 vs object type mismatch
+⚠️ Column naming: customer_id vs cust_id variations
 
-> Show me the customers schema
-📋 customers.csv Schema:
-• customer_id (int64) - 1000 unique values
-• first_name (object) - 956 unique values
-• email (object) - 1000 unique values
+> Find user identifiers semantically
+� customers.csv → customer_id (similarity: 0.89)
+📍 reviews.csv → user_id (similarity: 0.68)
 ```
 
-## 📖 User Documentation
+## � Documentation
 
-- **[Usage Guide](docs/USAGE.md)** - Detailed usage instructions and examples
-- **[Troubleshooting](docs/TROUBLESHOOTING.md)** - Common issues and solutions
+- **[Usage Guide](docs/USAGE.md)** - Complete user guide with examples
+- **[Architecture](docs/ARCHITECTURE.md)** - Technical overview  
+- **[Troubleshooting](docs/TROUBLESHOOTING.md)** - Common issues
 
-## 🏗️ Technical Documentation
+## 🏗️ Architecture
 
-- **[Architecture Overview](docs/vibe-collab/ARCHITECTURE.md)** - Comprehensive technical architecture documentation
-- **[Development Guide](docs/DEVELOPMENT.md)** - Setup and development guidelines
-- **[Development Plan](docs/vibe-collab/concept_and_plan.md)** - Project concept, vision, and implementation roadmap
-- **[Technical Documentation Guide](docs/vibe-collab/README.md)** - Overview of technical docs structure
+TableTalk uses a clean 4-layer architecture:
+- **CLI Interface** - Natural language chat  
+- **SchemaAgent** - AI query processing
+- **ToolRegistry** - 8 unified analysis tools
+- **MetadataStore** - DuckDB schema storage
 
-## 📝 Development Notes
-
-- **[Migration History](docs/vibe-collab/migration_plan.md)** - Historical architecture migration details
-- **[Todo List](docs/todo.txt)** - Development tasks and ideas
-
-## 🗂️ Project Structure
-
-```
-table-talk/
-├── README.md                    # This file - main project documentation
-├── src/                         # Source code
-├── docs/                        # Documentation
-│   ├── USAGE.md                 # User guide and examples
-│   ├── DEVELOPMENT.md           # Development setup and guidelines
-│   ├── TROUBLESHOOTING.md       # Common issues and solutions
-│   ├── todo.txt                 # Development notes
-│   └── vibe-collab/             # Technical architecture docs (for GitHub Copilot)
-│       ├── README.md            # Technical docs overview
-│       ├── ARCHITECTURE.md      # Comprehensive technical architecture
-│       ├── concept_and_plan.md  # Project concept and roadmap
-│       └── migration_plan.md    # Historical migration documentation
-├── scripts/                     # Setup and utility scripts
-├── tests/                       # Test files
-├── data/                        # Data files directory
-└── config/                      # Configuration files
-├── scripts/                     # Setup and utility scripts
-├── tests/                       # Test files
-├── data/                        # Data files directory
-└── config/                      # Configuration files
-```
-
-## 🔗 Quick Links
-
-- **Getting Started**: Quick start instructions below
-- **Scripts**: Setup and utility scripts in [scripts/](scripts/)
-- **Tests**: Test files in [tests/](tests/)
-- **Source Code**: Implementation in [src/](src/)
-
----
+Built with Python 3.11+, DuckDB, Ollama, and optional semantic search capabilities.

@@ -1,408 +1,140 @@
-# 🏗️ TableTalk Architecture Documentation
+# 🏗️ TableTalk Architecture
 
-**Last Updated**: August 1, 2025  
-**Version**: 3.0 (Clean Modular Architecture)
+**Last Updated**: August 4, 2025  
+**Version**: 4.0 (Simplified & Clean)
 
 ## 📊 System Overview
 
-TableTalk is a conversational EDA (Exploratory Data Analysis) assistant that enables natural language exploration of data schemas using local language models. The system uses a **clean modular tool architecture** with native Ollama function calling for optimal performance and maintainability.
+TableTalk is a conversational data schema explorer using local AI models. It features a clean 4-layer architecture with function calling integration.
 
 ## 🎯 Core Architecture
 
-### **4-Layer Clean Design**
+### **4-Layer Design**
 ```
 ┌─────────────────────────────────────────────────────────┐
 │                CLI Interface                            │
-│         • Command handling (/scan, /help, /status)     │
-│         • Natural language routing                     │
-│         • User interaction                             │
+│         • Natural language chat                        │
+│         • Commands (/scan, /help, /status)             │
 └─────────────────────┬───────────────────────────────────┘
                       │
 ┌─────────────────────▼───────────────────────────────────┐
 │               SchemaAgent                               │
-│         • Function calling only (simplified)           │
-│         • ToolRegistry integration                     │
-│         • Model compatibility detection                │
+│         • Function calling with Ollama                 │
+│         • Tool selection and execution                 │
 └─────────────────────┬───────────────────────────────────┘
                       │
 ┌─────────────────────▼───────────────────────────────────┐
 │              ToolRegistry                               │
-│    • Single source of truth for 8 tools               │
-│    • Auto-schema generation for Ollama                │
-│    • Centralized execution & error handling           │
-│    • Modular tool architecture                        │
+│    • 8 unified tools in 4 organized files             │
+│    • Auto-schema generation for function calling       │
+│    • Strategy pattern for extensibility                │
 └─────────────────────┬───────────────────────────────────┘
                       │
 ┌─────────────────────▼───────────────────────────────────┐
-│        Modular Tools & Strategy Components             │
+│           Data Layer & Components                       │
 │  ┌─────────────┐ ┌────────────┐ ┌─────────────┐        │
-│  │ Basic Tools │ │Search Tools│ │Comparison   │        │
-│  │ • Files     │ │ • Metadata │ │Tools        │        │
-│  │ • Schemas   │ │ • Semantic │ │ • Relations │        │
-│  │ • Stats     │ │   Search   │ │ • Consistency│       │
+│  │ Searchers   │ │ Analyzers  │ │ Formatters  │        │
+│  │ • Column    │ │ • Relations│ │ • Text      │        │
+│  │ • File      │ │ • Quality  │ │ • Table     │        │
+│  │ • Semantic  │ │ • Semantic │ │             │        │
 │  └─────────────┘ └────────────┘ └─────────────┘        │
-│                   ┌─────────────┐                      │
-│                   │Utility Tools│                      │
-│                   │ • Compare   │                      │
-│                   │ • Analysis  │                      │
-│                   └─────────────┘                      │
 │                                                         │
-│              MetadataStore + DuckDB                     │
-│         • Schema extraction (CSV/Parquet)              │
-│         • Embedded analytics database                  │
-│         • File system access                           │
+│              MetadataStore (DuckDB)                     │
 └─────────────────────────────────────────────────────────┘
 ```
 
-### **Design Philosophy**
-1. **Clean Modularity**: Well-organized, single-responsibility modules
-2. **Local-First**: All processing happens locally for privacy and cost control
-3. **Function Calling Only**: Single processing path using native Ollama function calling
-4. **Strategy Pattern**: Pluggable components for extensibility
-5. **Maintainable**: Easy to understand, modify, and extend
-6. **Semantic Intelligence**: Optional AI-powered understanding with graceful fallback
-
 ### **Technology Stack**
-- **Python 3.11+**: Primary language with type hints
-- **DuckDB**: Embedded analytics database for metadata storage
-- **Ollama**: Local LLM serving with native function calling
-- **Phi-4-mini-fc**: Microsoft's function calling enabled model
-- **Optional Dependencies**: sentence-transformers (semantic search), pandas (data analysis)
+- **Python 3.11+** - Primary language with type hints
+- **DuckDB** - Embedded analytics database
+- **Ollama** - Local LLM serving with function calling
+- **Phi-4-mini-fc** - Microsoft's function calling enabled model
+- **Optional**: sentence-transformers (semantic search), pandas, tabulate
 
-## 🛠️ Modular Component Architecture
+## 🛠️ Component Overview
 
-### **1. Tool Registry (Central Hub)**
-```python
-# Single source of truth for all tools
-class ToolRegistry:
-    - Auto-registers 8 modular tools from 4 files
-    - Generates Ollama function schemas automatically  
-    - Provides centralized execution & error handling
-    - Maintains tool lifecycle & logging
-```
-
-**Key Features:**
-- ✅ **Modular loading** - Tools organized in logical files
-- ✅ **Auto-discovery** - Tools register themselves
-- ✅ **Schema generation** - Ollama function calling schemas
-- ✅ **Error resilience** - Comprehensive error handling
-- ✅ **Extensibility** - Easy to add new tools
-
-### **2. Modular Tools (8 Tools in 4 Organized Files)**
-
-#### **Basic Information Tools** (`src/tools/basic_tools.py`)
-```python
-GetFilesTool(pattern=None)                         # File listing with filtering
-GetSchemasTool(file_pattern=None, detailed=True)   # Schema information  
-GetStatisticsTool(scope="database", target=None)   # Multi-level stats
-```
-
-#### **Search Tools** (`src/tools/search_tools.py`)
-```python
-SearchMetadataTool(search_term, search_type="column", semantic=False)  # Universal search with AI
-```
-
-#### **Analysis Tools** (`src/tools/comparison_tools.py`)
-```python
-FindRelationshipsTool(analysis_type="common_columns", threshold=2, semantic=False)  # Relationships
-DetectInconsistenciesTool(check_type="data_types", threshold=0.8)                  # Quality checks
-```
-
-#### **Utility Tools** (`src/tools/utility_tools.py`)
-```python
-CompareItemsTool(item1, item2, comparison_type="schemas")  # File comparisons
-RunAnalysisTool(description)                              # Complex queries
-```
-
-### **3. Enhanced Features**
-
-#### **Semantic Intelligence** (Optional)
-- **AI-Powered Search**: Find "user identifiers" → matches `user_id`, `customer_id`
-- **Concept Understanding**: Semantic similarity detection for column relationships
-- **Smart Naming**: Detect inconsistent naming patterns across files
-- **Graceful Fallback**: Works without heavy AI dependencies
-
-#### **File Organization Benefits**
+### **Tool Organization (8 Tools in 4 Files)**
 ```
 src/tools/
-├── basic_tools.py      # Core information retrieval (210 lines)
-├── search_tools.py     # Smart search functionality (143 lines)  
-├── comparison_tools.py # Advanced analysis & AI (403 lines)
-├── utility_tools.py    # Utility operations (153 lines)
+├── basic_tools.py      # GetFiles, GetSchemas, GetStatistics
+├── search_tools.py     # SearchMetadata (with semantic search)
+├── comparison_tools.py # FindRelationships, DetectInconsistencies  
+├── utility_tools.py    # CompareItems, RunAnalysis
 ├── tool_registry.py    # Central coordination
 └── core/              # Strategy components
-    ├── base_components.py
-    ├── searchers.py
-    ├── analyzers.py  
-    ├── formatters.py
-    └── semantic_search.py
+    ├── base_components.py  # Abstract base classes
+    ├── searchers.py        # Search strategies
+    ├── analyzers.py        # Analysis strategies
+    ├── formatters.py       # Output formatters
+    └── semantic_search.py  # AI-powered search (optional)
 ```
 
-**Benefits:**
-- 🎯 **Find code fast** - Logical organization by functionality
-- 🔧 **Easy maintenance** - Focused, single-responsibility files
-- 📈 **Better testing** - Isolated components for unit testing
-- 🚀 **Faster development** - Clear separation of concerns
-
-### **4. SchemaAgent - Simplified Query Processing**
-
-Single agent with ToolRegistry integration and function calling only:
-
-```python
-class SchemaAgent:
-    def __init__(self, metadata_store, model_name="phi4-mini-fc", base_url="http://localhost:11434"):
-        """Initialize with ToolRegistry integration"""
-        self.tool_registry = ToolRegistry(metadata_store)
-        self.model_name = model_name
-        self.base_url = base_url
-        self.supports_function_calling = self._detect_function_calling()
-    
-    def query(self, user_query: str) -> str:
-        """Process query using function calling only"""
-        return self._process_with_function_calling(user_query)
-```
-
-**Features:**
-- **Native Ollama function calling**: Direct API calls with auto-generated schemas
-- **Auto-tool selection**: Model chooses appropriate tool from 8 modular options
-- **Model compatibility**: Detects function calling support (phi4-mini-fc required)
-- **Error handling**: Graceful failures with user guidance
-
-### **5. Strategy Pattern Components**
-
-#### **Searchers** (`src/tools/core/searchers.py`)
-```python
-ColumnSearcher    # Search column metadata across files
-FileSearcher      # Search file metadata with pattern matching
-TypeSearcher      # Search columns by data type
-```
-
-#### **Analyzers** (`src/tools/core/analyzers.py`)
-```python
-RelationshipAnalyzer   # Find common columns, similar schemas
-ConsistencyChecker     # Detect type mismatches, naming issues
-```
-
-#### **Formatters** (`src/tools/core/formatters.py`)
-```python
-TextFormatter     # Human-readable text output with emojis
-TableFormatter    # Tabular output (optional tabulate integration)
-```
-
-#### **Semantic Intelligence** (`src/tools/core/semantic_search.py`)
-```python
-SemanticSearcher           # AI-powered column matching
-SemanticSchemaAnalyzer     # Schema similarity analysis
-SemanticConsistencyChecker # Intelligent naming validation
-```
-
-**Benefits:**
-- **Pluggable components**: Easy to add new search/analysis/formatting types
-- **Clean separation**: Search vs analysis vs formatting concerns
-- **Testable**: Each component can be unit tested independently
-- **Optional dependencies**: Graceful fallback when AI libraries unavailable
-
-### **6. Interactive CLI Interface**
-
-```python
-class ChatInterface:
-    def start(self):
-        """Main interaction loop with commands and natural language"""
-```
-
-**Features:**
-- **Commands**: `/scan`, `/help`, `/status`, `/exit`
-- **Natural language**: Query processing through SchemaAgent
-- **Function calling only**: Simplified processing mode
-- **Status indicators**: Shows 8 available tools and system health
+### **Key Features**
+- **Function calling only** - Direct Ollama integration
+- **Strategy pattern** - Pluggable searchers, analyzers, formatters
+- **Semantic intelligence** - Optional AI-powered understanding
+- **Auto-discovery** - Tools register themselves automatically
+- **Error resilience** - Graceful fallbacks throughout
 
 ## 🔄 Data Flow
 
-### **Query Processing Flow**
+### **Query Processing**
 ```
-Natural Language Query
-    ↓
-CLI Interface → Parse commands vs natural language
-    ↓  
-SchemaAgent → Detect function calling support (phi4-mini-fc required)
-    ↓
-ToolRegistry → Generate function calling schemas for 8 tools
-    ↓
-Native Ollama Function Calling → Tool selection & parameter validation
-    ↓
-Execute Selected Tool(s) → Strategy components (searchers/analyzers)
-    ↓
-Format Response → Text/table formatters with optional enhancements
-    ↓
-Return to User → CLI display with error handling
+User Query → CLI → SchemaAgent → ToolRegistry → Tool Execution → Response
 ```
 
 ### **Function Calling Integration**
 ```
-User: "Find columns that appear in multiple files"
+"Find columns shared between files"
     ↓
-Model Selection: phi4-mini-fc (function calling enabled)
+Ollama phi4-mini-fc model processes query
     ↓
-Function Call: find_relationships(analysis_type="column_overlap")
+Calls: find_relationships(analysis_type="common_columns")
     ↓
-Tool Execution: ToolRegistry → FindRelationshipsTool → RelationshipAnalyzer
+ToolRegistry executes FindRelationshipsTool
     ↓
-Response: Formatted results showing common columns across files
+Uses RelationshipAnalyzer + TextFormatter
+    ↓
+Returns formatted results to user
 ```
 
-### **Error Handling Flow**
-```
-Model Compatibility Check
-    ↓
-phi4-mini-fc detected? → YES: Continue with function calling
-    ↓                    → NO: Error message "Function calling model required"
-    ↓
-Tool Execution Error? → Graceful fallback with error message
-    ↓
-Optional Dependency Missing? → Fallback implementation used
-    ↓
-User receives appropriate response or error guidance
-```
+## 📊 Data Storage
 
-### **Tool Execution Flow**
-```
-Tool Call Request
-    ↓
-ToolRegistry.execute_tool(name, **kwargs)
-    ↓
-Tool.execute(**kwargs)
-    ├─ Strategy Component (searcher/analyzer)
-    ├─ MetadataStore Query
-    └─ Formatter (text/table)
-    ↓
-Formatted Result String
-```
-
-## �️ Data Architecture
-
-### **Metadata Storage Schema**
+### **Metadata Schema (DuckDB)**
 ```sql
--- Primary metadata table
 CREATE TABLE schema_info (
-    id INTEGER PRIMARY KEY,
-    file_name TEXT NOT NULL,
-    file_path TEXT NOT NULL, 
-    column_name TEXT NOT NULL,
-    data_type TEXT NOT NULL,
+    file_name TEXT,
+    column_name TEXT,
+    data_type TEXT,
     null_count INTEGER,
     unique_count INTEGER,
     total_rows INTEGER,
     file_size_mb REAL,
-    last_scanned TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    last_scanned TIMESTAMP
 );
-
--- Performance indexes
-CREATE INDEX idx_file_name ON schema_info(file_name);
-CREATE INDEX idx_column_name ON schema_info(column_name);
-CREATE INDEX idx_data_type ON schema_info(data_type);
 ```
 
-**Design Principles:**
-- **Normalized storage**: One row per column for flexible queries
-- **Rich metadata**: Comprehensive information for analysis
-- **Performance indexes**: Fast queries on common search patterns
-- **Embedded database**: DuckDB for local-first approach
+**Benefits:**
+- Normalized storage for flexible queries
+- Performance indexes on common search patterns
+- Embedded database for local-first approach
 
-### **MetadataStore Interface**
-```python
-class MetadataStore:
-    def list_all_files() -> List[Dict]
-    def get_file_schema(file_name: str) -> List[Dict] 
-    def add_file_metadata(file_path: str, schema_info: List[Dict])
-    def update_file_metadata(file_name: str, updates: Dict)
-    def search_columns(search_term: str) -> List[Dict]
-    def get_database_summary() -> Dict
-```
-
-## 🛠️ Tool Architecture
-
-### **8 Unified Tools Overview**
-
-| Tool | Purpose | Example Queries |
-|------|---------|----------------|
-| `get_files()` | List files with optional pattern filtering | "What files do we have?", "Files containing 'customer'" |
-| `get_schemas()` | Schema info for single/multiple files | "Schema of customers.csv", "All file schemas" |
-| `search_metadata()` | Universal search (columns, files, types) | "Find customer_id column", "Files with INTEGER types" |
-| `get_statistics()` | Stats at database/file/column level | "Database overview", "Statistics for orders.csv" |
-| `find_relationships()` | Common columns, similar schemas | "What columns are shared?", "Files with similar structure" |
-| `detect_inconsistencies()` | Type mismatches, naming issues | "Data quality problems", "Type inconsistencies" |
-| `compare_items()` | Compare files, schemas, etc. | "Compare customers.csv and orders.csv" |
-| `run_analysis()` | Complex/custom analysis requests | "Files with most similar column structures" |
-
-### **Tool Implementation Pattern**
-```python
-class BaseTool:
-    """Base class for all tools - optimized for Ollama function calling"""
-    def __init__(self, metadata_store):
-        self.store = metadata_store
-        
-    def get_parameters_schema(self) -> Dict:
-        """Return JSON schema for tool parameters (for Ollama function calling)"""
-        raise NotImplementedError
-        
-    def execute(self, **kwargs) -> str:
-        """Execute the tool with given parameters"""
-        raise NotImplementedError
-
-# Example implementation
-class SearchMetadataTool(BaseTool):
-    description = "Search across metadata. search_type: 'column', 'file', 'type'"
-    
-    def get_parameters_schema(self) -> Dict:
-        return {
-            "type": "object",
-            "properties": {
-                "search_term": {"type": "string", "description": "Term to search for"},
-                "search_type": {"type": "string", "enum": ["column", "file", "type"], "default": "column"}
-            },
-            "required": ["search_term"]
-        }
-    
-    def execute(self, search_term: str, search_type: str = "column") -> str:
-        # Delegate to appropriate searcher strategy
-        searchers = {
-            "column": ColumnSearcher(self.store),
-            "file": FileSearcher(self.store),
-            "type": TypeSearcher(self.store)
-        }
-        result = searchers[search_type].search(search_term)
-        formatter = TextFormatter()
-        return formatter.format(result, {"search_term": search_term})
-```
-
-## 🎛️ Configuration & Capabilities
-
-### **Function Calling Support**
-- ✅ **Native Ollama**: phi4-mini-fc, phi4:fc, phi4-mini:fc
-- ✅ **Auto-detection**: Detects function calling capabilities
-- ✅ **Error handling**: Graceful failures with helpful messages
-
-### **Optional Dependencies**
-```python
-# Core (Required)
-requests      # Ollama API communication
-duckdb       # Metadata storage
-
-# Optional (Graceful fallback)  
-pandas       # Enhanced data analysis
-tabulate     # Better table formatting
-```
+## 🎛️ Configuration
 
 ### **Model Requirements**
-- ✅ **Required**: Function calling enabled models (phi4-mini-fc, etc.)
-- ❌ **Removed**: LangChain structured output support
-- ✅ **Local-first**: All processing on local machine
+- **Required**: phi4-mini-fc (function calling enabled)
+- **Optional**: sentence-transformers (semantic search)
+- **Fallback**: Graceful degradation when dependencies missing
+
+### **Performance Characteristics**
+- **Simple queries**: <50ms
+- **Analysis queries**: 100-500ms
+- **Memory usage**: ~50MB base, ~200MB with semantic models
+- **Scalability**: Optimized for 100-500 files
 
 ## 🔧 Extension Points
 
 ### **Adding New Tools**
 ```python
-# 1. Create tool class inheriting from BaseTool
 class NewTool(BaseTool):
     description = "Tool description for LLM"
     
@@ -410,117 +142,29 @@ class NewTool(BaseTool):
         return {"type": "object", "properties": {...}}
     
     def execute(self, **kwargs) -> str:
-        # Implementation
+        # Implementation using strategy components
         pass
 
-# 2. Register in ToolRegistry._register_tools()
+# Register in ToolRegistry._register_tools()
 tools['new_tool'] = NewTool(self.store)
-
-# That's it! Auto-discovery handles the rest
 ```
 
-### **Adding New Strategy Components**
+### **Adding Strategy Components**
 ```python
-# 1. Create new searcher/analyzer/formatter
 class NewSearcher(BaseSearcher):
     def search(self, term: str) -> List[Dict]:
-        # Implementation
+        # Custom search logic
         pass
 
-# 2. Use in existing or new tools
+# Use in tools
 searcher = NewSearcher(metadata_store)
 results = searcher.search(search_term)
 ```
 
-## 📊 Performance Characteristics
+## � Design Principles
 
-### **Tool Execution Times**
-- **Simple tools** (get_files, search_metadata): < 50ms
-- **Analysis tools** (find_relationships): 100-500ms  
-- **Complex tools** (run_analysis): 200ms-1s
-
-### **Memory Usage**
-- **Base system**: ~50MB
-- **With pandas**: ~100MB  
-- **Large datasets** (1000+ files): ~200MB
-
-### **Scalability**
-- ✅ **Optimized for**: 100-150 files (target use case)
-- ✅ **Tested up to**: 500 files
-- ✅ **Strategy components**: Efficient data structures
-
-## 🔒 Error Handling & Resilience  
-
-### **Error Boundaries**
-```python
-# Tool level - Individual tool failures
-Tool.execute() → Try/catch → Error message
-
-# Registry level - Tool discovery failures  
-ToolRegistry → Skip failed tools → Log warnings
-
-# Agent level - Function calling failures
-SchemaAgent → Fallback messages → User guidance
-```
-
-### **Graceful Degradation**
-- ✅ **Missing dependencies**: Fallback implementations
-- ✅ **Invalid inputs**: Clear error messages
-- ✅ **Data issues**: Partial results with warnings
-- ✅ **Model issues**: Model requirement guidance
-
-## 🚀 Migration Status & Benefits
-
-### **Migration Completed Successfully** ✅
-All 4 phases of the migration from 3-layer to unified tool architecture completed:
-
-#### **Phase 1**: Core Infrastructure ✅
-- 8 unified tools with strategy pattern
-- Tool registry with auto-schema generation
-- Pluggable searchers, analyzers, formatters
-
-#### **Phase 2**: Agent Integration ✅  
-- SchemaAgent simplified to function calling only
-- LangChain dependencies completely removed
-- End-to-end integration working perfectly
-
-#### **Phase 3**: Testing & Validation ✅
-- All 8 tools individually tested and working
-- End-to-end queries working smoothly
-- Error handling and edge cases verified
-
-#### **Phase 4**: Cleanup & Tests ✅
-- Old tool files removed 
-- Dependencies cleaned up
-- Test suite updated and passing
-
-### **Architecture Benefits Achieved**
-- ✅ **Modular Organization**: 4 focused tool files replacing 970-line monolithic file
-- ✅ **Clean Separation**: Logical grouping by functionality (basic, search, comparison, utility)
-- ✅ **50% reduction** in tool complexity (3 layers → 8 unified tools)
-- ✅ **60% reduction** in dependencies (10+ packages → 4 core packages)
-- ✅ **100% elimination** of code duplication (single source of truth)
-- ✅ **Improved performance** with direct function calling
-- ✅ **Enhanced maintainability** with focused, single-responsibility modules
-- ✅ **Better developer experience** with clear file organization
-
-### **Current State** 
-- **Production Ready**: New architecture fully operational
-- **Performance Optimized**: Direct Ollama function calling
-- **Maintainable**: Clean separation of concerns with strategy pattern
-- **Extensible**: Easy to add new tools and components
-- **Future-Proof**: Solid foundation for continued development
-
----
-
-## 📝 Design Principles
-
-1. **Single Responsibility**: Each component has one clear purpose
-2. **Open/Closed**: Easy to extend, hard to break existing functionality  
-3. **Dependency Inversion**: Abstract interfaces, concrete implementations
-4. **Strategy Pattern**: Pluggable algorithms for search/analysis/formatting
-5. **Registry Pattern**: Auto-discovery and lifecycle management
-6. **Fail-Safe Defaults**: Graceful fallbacks for missing dependencies
-7. **Local-First**: All processing on user's machine
-
-This architecture provides a solid foundation for conversational data exploration while maintaining simplicity, extensibility, and performance.
+1. **Single Responsibility** - Each component has one clear purpose
+2. **Strategy Pattern** - Pluggable algorithms for flexibility
+3. **Local-First** - All processing on user's machine
+4. **Fail-Safe Defaults** - Graceful fallbacks for missing dependencies
+5. **Function Calling Only** - Simplified processing path

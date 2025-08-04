@@ -1,31 +1,57 @@
-# Troubleshooting
+# 🛠️ Troubleshooting
 
-## Common Issues
+## Quick Fixes
 
-### Ollama Connection
+### Ollama Issues
 ```bash
-ollama serve              # Start Ollama
-ollama pull phi3:mini     # Install model
+# Start Ollama service
+ollama serve
+
+# Install required model
+./scripts/setup_phi4_function_calling.sh
+
+# Verify model is available
+ollama list | grep phi4-mini-fc
 ```
 
-### Import Errors
+### Import/Environment Errors
 ```bash
-source venv/bin/activate  # Activate venv first
+# Activate virtual environment
+source tabletalk-env/bin/activate
+
+# Install/update dependencies
 pip install -r requirements.txt
+
+# Test basic imports
+python -c "from src.tools.tool_registry import ToolRegistry; print('✅ OK')"
 ```
 
-### Database Issues
+### No Data Files Found
 ```bash
-rm -rf database/          # Reset database
-python src/main.py        # Recreate
+# Put CSV/Parquet files in data/ folder
+ls data/
+
+# Run scan command
+python tabletalk.py
+> scan
 ```
 
-### No Files Found
-- Only CSV/Parquet files supported
-- Use absolute paths: `/scan /full/path/to/data`
-- Check file permissions
+### Semantic Search Not Working
+```bash
+# Install optional dependencies
+pip install sentence-transformers scikit-learn
 
-### Performance
-- Files must be under 100MB
-- Use smaller directories for testing
-- Restart if memory issues occur
+# First semantic query takes ~5 seconds (model loading)
+# Subsequent queries are fast
+```
+
+### Performance Issues
+- **First run**: Model downloads may take time
+- **Large files**: Files >100MB are automatically sampled
+- **Memory**: Close other applications if running low on RAM
+- **Restart**: `python tabletalk.py` to reload fresh
+
+### Still Having Issues?
+- Check `logs/tabletalk.log` for detailed error messages
+- Ensure Python 3.11+ is installed
+- Verify Ollama is running: `curl http://localhost:11434/api/version`
