@@ -1,20 +1,17 @@
 """Metadata storage using DuckDB for schema information."""
 
-from pathlib import Path
-from typing import List, Dict, Optional, Any
-import duckdb
 import logging
-from datetime import datetime
 import os
 import sys
+from datetime import datetime
+from pathlib import Path
+from typing import List, Dict, Optional, Any
 
-# Ensure src is in Python path for consistent imports
-src_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-if src_dir not in sys.path:
-    sys.path.insert(0, src_dir)
+# Third-party imports
+import duckdb
 
-# Always use absolute imports from src
-from utils.logger import get_logger
+# Internal imports
+from ..utils.logger import get_logger
 
 
 class MetadataStore:

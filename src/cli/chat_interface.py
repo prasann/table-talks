@@ -1,18 +1,14 @@
 """Simple chat interface for TableTalk."""
 
+import logging
 import os
 import sys
 from pathlib import Path
 
-# Ensure src is in Python path for consistent imports
-src_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-if src_dir not in sys.path:
-    sys.path.insert(0, src_dir)
-
-# Always use absolute imports from src
-from metadata.metadata_store import MetadataStore
-from metadata.schema_extractor import SchemaExtractor
-from agent.schema_agent import SchemaAgent
+# Internal imports
+from ..metadata.metadata_store import MetadataStore
+from ..metadata.schema_extractor import SchemaExtractor
+from ..agent.schema_agent import SchemaAgent
 from .rich_formatter import CLIFormatter
 
 
@@ -23,6 +19,7 @@ class ChatInterface:
         """Initialize the chat interface."""
         self.config = config
         self.formatter = CLIFormatter()  # Rich formatter for all CLI output
+        self.logger = logging.getLogger("tabletalk.chat_interface")
         
         # Initialize components
         self.metadata_store = MetadataStore(config['database']['path'])
@@ -119,13 +116,22 @@ class ChatInterface:
             self.formatter.print_warning("Agent not available. Please try /scan to analyze files first.")
             return
         
+        # Log query start
+        self.logger.info(f"START: Processing user query: {query}")
+        
         try:
             # Show loading indicator while processing query
             with self.formatter.create_loading_indicator("🤖 Analyzing your query"):
                 response = self.agent.query(query)
             
+            # Log query completion
+            response_preview = response[:100] + "..." if len(response) > 100 else response
+            self.logger.info(f"END: Query processed successfully. Response length: {len(response)} chars. Preview: {response_preview}")
+            
             self.formatter.print_agent_response(response)
         except Exception as e:
+            # Log query error
+            self.logger.error(f"END: Query processing failed: {str(e)}")
             self.formatter.print_error("Error processing query", str(e))
 
     def _scan_directory(self, directory):

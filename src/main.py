@@ -1,20 +1,17 @@
 """TableTalk main entry point."""
 
-import os
-import sys
-import yaml
 import logging
+import sys
 from pathlib import Path
 
-# Ensure src is in Python path for consistent imports
-src_dir = os.path.dirname(os.path.abspath(__file__))
-if src_dir not in sys.path:
-    sys.path.insert(0, src_dir)
+# Third-party imports
+import yaml
+import requests
 
-# Always use absolute imports from src
-from cli.chat_interface import ChatInterface
-from cli.rich_formatter import CLIFormatter
-from utils.logger import setup_logger
+# Internal imports
+from .cli.chat_interface import ChatInterface
+from .cli.rich_formatter import CLIFormatter
+from .utils.logger import setup_logger
 
 
 def load_config() -> dict:

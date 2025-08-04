@@ -1,9 +1,10 @@
-"""Abstract base classes for unified tool architecture."""
+"""Base components for tools architecture."""
 
 from abc import ABC, abstractmethod
-from typing import Dict, List, Any, Optional
+from typing import Dict, Any, Optional, List
 
-from utils.logger import get_logger
+# Internal imports
+from ...utils.logger import get_logger
 
 
 class BaseTool(ABC):

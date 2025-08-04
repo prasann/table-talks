@@ -46,11 +46,12 @@ def tabletalk_runner():
     import sys
     from pathlib import Path
     
-    # Add src to path
+    # Add src to path for test imports
     src_path = Path(__file__).parent.parent / "src"
-    sys.path.insert(0, str(src_path))
+    if str(src_path) not in sys.path:
+        sys.path.insert(0, str(src_path))
     
-    from main import run_tabletalk_commands
+    from src.main import run_tabletalk_commands
     
     def _run_commands(commands: List[str]) -> List[Tuple[str, str, bool]]:
         try:

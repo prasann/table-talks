@@ -1,11 +1,14 @@
-"""Tool registry for modular schema tools."""
+"""Tool registry for organizing and managing available tools."""
 
-from typing import Dict, List, Any
+import logging
+from typing import Dict, Any, List
+
+# Internal imports
 from .basic_tools import GetFilesTool, GetSchemasTool, GetStatisticsTool
 from .search_tools import SearchMetadataTool
 from .comparison_tools import FindRelationshipsTool, DetectInconsistenciesTool
 from .utility_tools import CompareItemsTool, RunAnalysisTool
-from utils.logger import get_logger
+from ..utils.logger import get_logger
 
 
 class ToolRegistry:

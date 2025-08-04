@@ -1,20 +1,15 @@
-"""SchemaAgent - Unified agent for DuckDB schema queries with function calling only."""
+"""Schema Agent with function calling capabilities."""
 
 import json
 import logging
+from typing import Dict, Any, List, Optional
+
+# Third-party imports
 import requests
-from typing import Dict, List, Optional, Any
-import os
-import sys
 
-# Ensure src is in Python path for consistent imports
-src_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-if src_dir not in sys.path:
-    sys.path.insert(0, src_dir)
-
-# Always use absolute imports from src
-from utils.logger import get_logger
-from tools.tool_registry import ToolRegistry
+# Internal imports
+from ..utils.logger import get_logger
+from ..tools.tool_registry import ToolRegistry
 
 
 class SchemaAgent:

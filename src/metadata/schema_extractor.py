@@ -1,19 +1,16 @@
 """Schema extraction from CSV and Parquet files."""
 
-import pandas as pd
 import logging
-from pathlib import Path
-from typing import List, Dict, Any, Optional
 import os
 import sys
+from pathlib import Path
+from typing import List, Dict, Any, Optional
 
-# Ensure src is in Python path for consistent imports
-src_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-if src_dir not in sys.path:
-    sys.path.insert(0, src_dir)
+# Third-party imports
+import pandas as pd
 
-# Always use absolute imports from src
-from utils.logger import get_logger
+# Internal imports
+from ..utils.logger import get_logger
 
 
 class SchemaExtractor:
