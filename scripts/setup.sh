@@ -1,63 +1,26 @@
 #!/bin/bash
 
-# TableTalk Setup Script
-echo "🗣️  Setting up TableTalk..."
+# TableTalk Setup Script - Legacy Wrapper
+# This script is now a simple wrapper around the Python-based setup.
 
-# Check if Python 3.11+ is available
-python_version=$(python3 --version 2>&1 | grep -o '[0-9]\+\.[0-9]\+' | head -1)
-if [ -z "$python_version" ]; then
-    echo "❌ Python 3.11+ is required"
+echo "🗣️  TableTalk Setup"
+echo "==================="
+echo ""
+echo "ℹ️  This setup has been migrated to Python for better cross-platform support."
+echo ""
+echo "� Running Python setup script..."
+echo ""
+
+# Check if Python 3 is available
+if ! command -v python3 &> /dev/null; then
+    echo "❌ Python 3 is required but not found."
+    echo "   Please install Python 3.11+ from: https://python.org"
     exit 1
 fi
 
-echo "✅ Found Python $python_version"
-
-# Create virtual environment
-echo "📦 Creating virtual environment..."
-python3 -m venv venv
-
-# Activate virtual environment
-echo "🔌 Activating virtual environment..."
-source venv/bin/activate
-
-# Install dependencies
-echo "📥 Installing dependencies..."
-pip install --upgrade pip
-pip install -r requirements.txt
-
-# Create necessary directories
-echo "📁 Creating directories..."
-mkdir -p database
-mkdir -p logs
-
-# Check if Ollama is installed
-if command -v ollama &> /dev/null; then
-    echo "✅ Ollama is installed"
-    
-    # Check if Ollama is running
-    if curl -s http://localhost:11434/api/tags > /dev/null 2>&1; then
-        echo "✅ Ollama is running"
-        
-        # Check if phi3:mini model is available
-        if ollama list | grep -q "phi3:mini"; then
-            echo "✅ phi3:mini model is available"
-        else
-            echo "📥 Downloading phi3:mini model..."
-            ollama pull phi3:mini
-        fi
-    else
-        echo "⚠️  Ollama is not running. Start it with: ollama serve"
-    fi
-else
-    echo "⚠️  Ollama not found. Install it from: https://ollama.ai"
-fi
+# Run the Python setup script
+python3 "$(dirname "$0")/setup.py" "$@"
 
 echo ""
-echo "🎉 Setup complete!"
-echo ""
-echo "To start TableTalk:"
-echo "  1. Make sure Ollama is running: ollama serve"
-echo "  2. Activate the virtual environment: source venv/bin/activate"
-echo "  3. Run TableTalk: python src/main.py"
-echo ""
-echo "For help: python src/main.py and type /help"
+echo "💡 For future setups, you can run directly:"
+echo "   python3 scripts/setup.py"

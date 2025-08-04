@@ -4,20 +4,40 @@
 
 ## 🚀 Quick Start
 
+### Automated Setup (Recommended)
 ```bash
-# 1. Setup environment
-python -m venv tabletalk-env
-source tabletalk-env/bin/activate  # macOS/Linux
+# Cross-platform setup (Windows, macOS, Linux)
+python3 scripts/setup.py
+
+# Platform-specific wrappers also available:
+# ./scripts/setup.sh       # Unix/macOS/Linux  
+# scripts\setup.bat         # Windows
+```
+
+### Manual Setup
+```bash
+# 1. Install Ollama from https://ollama.ai
+# 2. Setup Python environment
+python3 -m venv venv
+source venv/bin/activate      # macOS/Linux
+# venv\Scripts\activate       # Windows
 pip install -r requirements.txt
 
-# 2. Install Ollama and setup models
-curl -fsSL https://ollama.ai/install.sh | sh
+# 3. Start Ollama and TableTalk
 ollama serve
-./scripts/setup_phi4_function_calling.sh
-
-# 3. Start TableTalk
 python tabletalk.py
 ```
+
+## 📋 Requirements
+
+- **Python 3.11+**: Core runtime
+- **Ollama**: Local LLM inference ([install guide](https://ollama.ai))
+- **Internet**: Required for initial model downloads (~80MB)
+
+### Supported Platforms
+- ✅ **Windows 10+** (Command Prompt, PowerShell, Windows Terminal)
+- ✅ **macOS 12+** (Terminal, iTerm2)  
+- ✅ **Linux** (Ubuntu 20.04+, other distributions)
 
 ## ✨ What You Can Do
 
