@@ -134,8 +134,11 @@ class ChatInterface:
             with self.formatter.create_loading_indicator("🤖 Analyzing your query"):
                 response = self.agent.query(query)
             
-            # Log successful completion (TODO: get tools_used from agent)
-            self.session_logger.log_query_success(response, tools_used=["get_files"])  # Placeholder
+            # Get the actual tools used from the agent
+            tools_used = self.agent.get_last_tools_used() if hasattr(self.agent, 'get_last_tools_used') else []
+            
+            # Log successful completion with actual tools used
+            self.session_logger.log_query_success(response, tools_used=tools_used)
             
             self.formatter.print_agent_response(response)
         except Exception as e:

@@ -2,7 +2,7 @@
 
 import json
 import logging
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Tuple
 
 # Third-party imports
 import requests
@@ -56,15 +56,21 @@ class SchemaAgent:
         self.logger.debug(f"Processing query with function calling: {user_query[:100]}...")
         
         try:
-            result = self._process_with_function_calling(user_query)
+            result, tools_used = self._process_with_function_calling(user_query)
+            # Store the tools used for the session logger
+            self._last_tools_used = tools_used
             # No need to log result length - session logger handles this
             return result
             
         except Exception as e:
             self.logger.error(f"Query processing failed: {e}")
             raise
+
+    def get_last_tools_used(self) -> List[str]:
+        """Get the tools used in the last query."""
+        return getattr(self, '_last_tools_used', [])
     
-    def _process_with_function_calling(self, query: str) -> str:
+    def _process_with_function_calling(self, query: str) -> Tuple[str, List[str]]:
         """Process query using native Ollama function calling."""
         self.logger.debug("Starting function calling processing")
         tools = self._get_function_calling_tools()
@@ -75,7 +81,7 @@ class SchemaAgent:
                 "messages": [
                     {
                         "role": "system", 
-                        "content": "You are a data schema analysis assistant. Use the provided functions to analyze database schemas and answer questions about data files, columns, types, and quality issues. Choose the most appropriate function based on the user's question."
+                        "content": "You are a data schema analysis assistant. You have access to specialized tools for analyzing database schemas, data files, and metadata. Each tool has a clear description of its purpose and parameters.\n\nChoose the most appropriate tool(s) based on the user's question. When tools have optional parameters, use them to provide more targeted results (e.g., filter for specific files or columns when the user asks about specific entities).\n\nAlways aim to give precise, relevant answers rather than overwhelming the user with all available data."
                     },
                     {
                         "role": "user", 
@@ -108,27 +114,28 @@ class SchemaAgent:
                 return self._execute_function_calls(response_data, query)
             else:
                 self.logger.error(f"Function calling API error: {response.status_code} - {response.text}")
-                return f"I'm having trouble connecting to the language model. Please try again."
+                return "I'm having trouble connecting to the language model. Please try again.", []
                 
         except Exception as e:
             self.logger.error(f"Function calling failed: {e}")
-            return f"I'm having trouble with function calling. Please try rephrasing your question."
+            return "I'm having trouble with function calling. Please try rephrasing your question.", []
     
     def _get_function_calling_tools(self) -> List[Dict]:
         """Get tool definitions for function calling from the unified tool registry."""
         return self.tool_registry.get_ollama_function_schemas()
     
-    def _execute_function_calls(self, response_data: dict, original_query: str) -> str:
-        """Execute function calls and return formatted results."""
+    def _execute_function_calls(self, response_data: dict, original_query: str) -> Tuple[str, List[str]]:
+        """Execute function calls and return formatted results and tools used."""
         try:
             message = response_data.get("message", {})
             tool_calls = message.get("tool_calls", [])
+            tools_used = []
             
             if not tool_calls:
                 # No function calls, return direct response
                 content = message.get("content", "No response generated")
                 self.logger.debug(f"LLM chose not to call any functions. Direct response: {content[:100]}...")
-                return content
+                return content, []
             
             self.logger.info(f"LLM decided to call {len(tool_calls)} functions:")
             for i, tool_call in enumerate(tool_calls):
@@ -152,19 +159,22 @@ class SchemaAgent:
                     result = self.tool_registry.execute_tool(function_name, **arguments)
                     self.logger.debug(f"Function {function_name} result length: {len(result)} characters")
                     results.append(result)
+                    tools_used.append(function_name)
                     
                 except Exception as e:
                     error_msg = f"Function execution failed: {str(e)}"
                     self.logger.error(f"Function execution failed: {str(e)}")
                     results.append(error_msg)
+                    # Still track the tool even if it failed
+                    tools_used.append(function_name)
             
             combined_result = "\n\n".join(results)
             self.logger.debug(f"Combined function call results length: {len(combined_result)} characters")
-            return combined_result
+            return combined_result, tools_used
             
         except Exception as e:
             self.logger.error(f"Function execution failed: {e}")
-            return f"Error executing functions: {e}"
+            return f"Error executing functions: {e}", []
     
     def check_llm_availability(self) -> bool:
         """Check if function calling is available."""

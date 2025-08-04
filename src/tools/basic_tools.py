@@ -43,7 +43,7 @@ class GetFilesTool(BaseTool):
 class GetSchemasTool(BaseTool):
     """Tool for getting schema information for files."""
     
-    description = "Get schema info for files, optionally filtered by pattern"
+    description = "Get detailed schema information for specific files or all files. Use file_pattern parameter to filter for specific tables/files (e.g., 'orders', 'customers'). Without file_pattern, returns summary of all files."
     
     def get_parameters_schema(self) -> Dict:
         return {
@@ -51,7 +51,7 @@ class GetSchemasTool(BaseTool):
             "properties": {
                 "file_pattern": {
                     "type": "string",
-                    "description": "Optional file pattern to filter"
+                    "description": "File name or pattern to filter for specific table/file (e.g., 'orders' for orders.csv, 'customer' for customer files). Leave empty to get all files."
                 },
                 "detailed": {
                     "type": "boolean", 
