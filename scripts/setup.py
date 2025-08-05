@@ -137,24 +137,10 @@ class TableTalkSetup:
             subprocess.run([python_exe, "-m", "pip", "install", "-r", str(requirements_file)], 
                          check=True, capture_output=True)
             
-            # Install semantic search dependencies with Windows-specific handling
-            if self.platform == "windows":
-                # On Windows, install CPU-only PyTorch first to avoid CUDA issues
-                self.print_step("Installing PyTorch (CPU-only for Windows compatibility)")
-                subprocess.run([python_exe, "-m", "pip", "install", "--upgrade", 
-                              "torch", "torchvision", "torchaudio", "--index-url", 
-                              "https://download.pytorch.org/whl/cpu"], 
-                             check=True, capture_output=True)
-            
+            # Install semantic search dependencies
             subprocess.run([python_exe, "-m", "pip", "install", "--upgrade", 
                           "sentence-transformers", "scikit-learn"], 
                          check=True, capture_output=True)
-            
-            # Install additional Windows compatibility packages
-            if self.platform == "windows":
-                subprocess.run([python_exe, "-m", "pip", "install", "--upgrade", 
-                              "certifi", "requests[security]"], 
-                             check=True, capture_output=True)
             
             self.print_success("Dependencies installed successfully")
             return True
@@ -307,71 +293,30 @@ functools[
         
         python_exe = self.get_python_executable()
         
-    def setup_semantic_model(self) -> bool:
-        """Set up and warm up the semantic model."""
-        self.print_step("Setting up semantic search model")
-        
-        python_exe = self.get_python_executable()
-        
-        # Create warmup script with Windows-specific handling
+        # Create warmup script
         warmup_script = '''
 import warnings
 import sys
-import os
-import ssl
 
 def warmup_semantic_model():
     try:
         print("[*] Loading semantic model for first time...")
         
-        # Handle SSL issues on Windows
-        try:
-            import certifi
-            os.environ['SSL_CERT_FILE'] = certifi.where()
-        except ImportError:
-            pass
-        
-        # Handle SSL context issues
-        try:
-            ssl._create_default_https_context = ssl._create_unverified_context
-        except AttributeError:
-            pass
-        
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore", category=FutureWarning)
-            warnings.filterwarnings("ignore", category=UserWarning)
-            
-            # Set environment variables for better Windows compatibility
-            os.environ['TOKENIZERS_PARALLELISM'] = 'false'  # Avoid threading issues
-            os.environ['HF_HUB_DISABLE_PROGRESS_BARS'] = '1'  # Reduce output noise
-            
             from sentence_transformers import SentenceTransformer
-            
-            # Use local cache directory to avoid long path issues on Windows
-            cache_folder = os.path.join(os.path.expanduser("~"), ".cache", "sentence_transformers")
-            if not os.path.exists(cache_folder):
-                os.makedirs(cache_folder, exist_ok=True)
-            
-            model = SentenceTransformer('all-MiniLM-L6-v2', cache_folder=cache_folder)
+            model = SentenceTransformer('all-MiniLM-L6-v2')
         
-        # Test encoding with error handling
-        try:
-            sample_embedding = model.encode(["test column name"], show_progress_bar=False)
-            print(f"[+] Semantic model ready! Embedding dimension: {len(sample_embedding[0])}")
-            return True
-        except Exception as embed_error:
-            print(f"[-] Encoding test failed: {embed_error}")
-            return False
+        # Test encoding
+        sample_embedding = model.encode(["test column name"])
+        print(f"[+] Semantic model ready! Embedding dimension: {len(sample_embedding[0])}")
+        return True
         
     except ImportError as e:
         print(f"[!] sentence-transformers not available: {e}")
-        print("[!] Try: pip install --upgrade sentence-transformers torch")
         return False
     except Exception as e:
         print(f"[-] Error loading semantic model: {e}")
-        # Print more detailed error info for debugging
-        import traceback
-        print(f"[-] Detailed error: {traceback.format_exc()}")
         return False
 
 if __name__ == "__main__":
@@ -410,16 +355,6 @@ if __name__ == "__main__":
             self.print_error(f"Failed to setup semantic model: {e}")
             if warmup_path.exists():
                 warmup_path.unlink()
-            
-            # Windows-specific troubleshooting
-            if self.platform == "windows":
-                self.print_info("Windows troubleshooting tips:")
-                self.print_info("1. Run as Administrator if you see permission errors")
-                self.print_info("2. Disable antivirus temporarily during setup")
-                self.print_info("3. Check Windows Defender isn't blocking downloads")
-                self.print_info("4. Ensure you have at least 4GB RAM available")
-                self.print_info("5. Try: pip install --upgrade --no-cache-dir sentence-transformers")
-            
             return False
     
     def test_installation(self) -> Dict[str, bool]:
