@@ -62,7 +62,6 @@ ENV/
 .Trashes
 ehthumbs.db
 Thumbs.db
-
 # TableTalk specific
 # Database files
 database/

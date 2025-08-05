@@ -62,24 +62,24 @@ class TableTalkSetup:
         print(f"{Colors.CYAN}{Colors.BOLD}{'='*60}{Colors.END}")
     
     def print_step(self, step: str):
-        """Print a step with emoji and formatting."""
-        print(f"\n{Colors.BLUE}🔧 {step}...{Colors.END}")
+        """Print a step with formatting."""
+        print(f"\n{Colors.BLUE}[*] {step}...{Colors.END}")
     
     def print_success(self, message: str):
         """Print a success message."""
-        print(f"{Colors.GREEN}✅ {message}{Colors.END}")
+        print(f"{Colors.GREEN}[+] {message}{Colors.END}")
     
     def print_warning(self, message: str):
         """Print a warning message."""
-        print(f"{Colors.YELLOW}⚠️  {message}{Colors.END}")
+        print(f"{Colors.YELLOW}[!] {message}{Colors.END}")
     
     def print_error(self, message: str):
         """Print an error message."""
-        print(f"{Colors.RED}❌ {message}{Colors.END}")
+        print(f"{Colors.RED}[-] {message}{Colors.END}")
     
     def print_info(self, message: str):
         """Print an info message."""
-        print(f"{Colors.WHITE}💡 {message}{Colors.END}")
+        print(f"{Colors.WHITE}[i] {message}{Colors.END}")
     
     def check_python_version(self) -> bool:
         """Check if Python version is 3.11+."""
@@ -300,7 +300,7 @@ import sys
 
 def warmup_semantic_model():
     try:
-        print("🔥 Loading semantic model for first time...")
+        print("[*] Loading semantic model for first time...")
         
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore", category=FutureWarning)
@@ -309,14 +309,14 @@ def warmup_semantic_model():
         
         # Test encoding
         sample_embedding = model.encode(["test column name"])
-        print(f"✅ Semantic model ready! Embedding dimension: {len(sample_embedding[0])}")
+        print(f"[+] Semantic model ready! Embedding dimension: {len(sample_embedding[0])}")
         return True
         
     except ImportError as e:
-        print(f"⚠️  sentence-transformers not available: {e}")
+        print(f"[!] sentence-transformers not available: {e}")
         return False
     except Exception as e:
-        print(f"❌ Error loading semantic model: {e}")
+        print(f"[-] Error loading semantic model: {e}")
         return False
 
 if __name__ == "__main__":
@@ -326,12 +326,12 @@ if __name__ == "__main__":
         
         warmup_path = self.project_root / "warmup_semantic.py"
         try:
-            with open(warmup_path, 'w') as f:
+            with open(warmup_path, 'w', encoding='utf-8') as f:
                 f.write(warmup_script)
             
             # Run warmup
             result = subprocess.run([python_exe, str(warmup_path)], 
-                                  capture_output=True, text=True)
+                                  capture_output=True, text=True, encoding='utf-8')
             
             if result.returncode == 0:
                 self.print_success("Semantic model warmed up successfully")
@@ -367,9 +367,9 @@ if __name__ == "__main__":
         python_exe = self.get_python_executable()
         try:
             result = subprocess.run([python_exe, "-c", 
-                                   "from src.agent.schema_agent import SchemaAgent; print('✅ Python imports work')"], 
+                                   "from src.agent.schema_agent import SchemaAgent; print('[+] Python imports work')"], 
                                   cwd=str(self.project_root), 
-                                  capture_output=True, text=True)
+                                  capture_output=True, text=True, encoding='utf-8')
             results['python'] = result.returncode == 0
             if results['python']:
                 self.print_success("Python environment test passed")
@@ -405,36 +405,36 @@ if __name__ == "__main__":
     
     def print_summary(self, test_results: Dict[str, bool]):
         """Print setup summary."""
-        self.print_header("🎉 Setup Complete!")
+        self.print_header("Setup Complete!")
         
         print(f"\n{Colors.BOLD}Status Summary:{Colors.END}")
-        print(f"Python Environment: {'✅ Ready' if test_results.get('python') else '❌ Failed'}")
-        print(f"Ollama Models: {'✅ Ready' if test_results.get('ollama') else '⚠️  Check Ollama'}")
-        print(f"Semantic Search: ✅ Available")
+        print(f"Python Environment: {'[+] Ready' if test_results.get('python') else '[-] Failed'}")
+        print(f"Ollama Models: {'[+] Ready' if test_results.get('ollama') else '[!] Check Ollama'}")
+        print(f"Semantic Search: [+] Available")
         
         print(f"\n{Colors.BOLD}Configuration:{Colors.END}")
         print(f"Model: {self.config['phi4_fc_model']}")
         print(f"Semantic Model: {self.config['semantic_model']}")
         print(f"Project Root: {self.project_root}")
         
-        print(f"\n{Colors.BOLD}🚀 To start TableTalk:{Colors.END}")
+        print(f"\n{Colors.BOLD}To start TableTalk:{Colors.END}")
         if self.platform == "windows":
             print(f"  {self.venv_path}\\Scripts\\activate")
         else:
             print(f"  source {self.venv_path}/bin/activate")
         print(f"  python tabletalk.py")
         
-        print(f"\n{Colors.BOLD}💡 Example queries:{Colors.END}")
+        print(f"\n{Colors.BOLD}Example queries:{Colors.END}")
         print("  'what files do we have'")
         print("  'show me the schema of orders'")
         print("  'list down the tables that has customer identifier in them'")
         
         if not test_results.get('ollama'):
-            print(f"\n{Colors.YELLOW}⚠️  Note: Make sure Ollama is running with: ollama serve{Colors.END}")
+            print(f"\n{Colors.YELLOW}[!] Note: Make sure Ollama is running with: ollama serve{Colors.END}")
     
     def run(self) -> bool:
         """Run the complete setup process."""
-        self.print_header("🗣️ TableTalk Setup")
+        self.print_header("TableTalk Setup")
         print(f"Platform: {platform.system()} {platform.release()}")
         print(f"Python: {sys.version}")
         
