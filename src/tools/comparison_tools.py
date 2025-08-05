@@ -109,13 +109,13 @@ class FindRelationshipsTool(BaseTool):
         output = f"Found {len(similar_schemas)} semantically similar schema pairs:\n\n"
         
         for result in similar_schemas:
-            output += f"🔗 **{result['file1']}** ↔ **{result['file2']}**\n"
+            output += f"[LINK] **{result['file1']}** <-> **{result['file2']}**\n"
             output += f"   Similarity: {result['similarity']:.3f}\n"
             
             if result['matching_concepts']:
                 output += "   Matching concepts:\n"
                 for concept in result['matching_concepts']:
-                    output += f"   • {concept['column1']} ↔ {concept['column2']} "
+                    output += f"   • {concept['column1']} <-> {concept['column2']} "
                     output += f"({concept['concept']}, {concept['similarity']:.3f})\n"
             output += "\n"
         
@@ -145,7 +145,7 @@ class FindRelationshipsTool(BaseTool):
             return f"No semantic concept groups found (threshold: {threshold})"
         
         # Format results
-        output = "📊 **Semantic Concept Groups**\n\n"
+        output = "[DATA] **Semantic Concept Groups**\n\n"
         
         for concept, matches in concept_groups.items():
             output += f"**{concept.upper()}** ({len(matches)} columns):\n"
@@ -180,7 +180,7 @@ class FindRelationshipsTool(BaseTool):
             return "No concept evolution data available"
         
         # Find concepts that appear across multiple files with different names
-        output = "🔄 **Concept Evolution Across Files**\n\n"
+        output = "[CYCLE] **Concept Evolution Across Files**\n\n"
         
         all_concepts = set()
         for concepts in file_concepts.values():
@@ -199,7 +199,7 @@ class FindRelationshipsTool(BaseTool):
                     output += f"  • {file_name}: {', '.join(column_names)}\n"
                 output += "\n"
         
-        return output.strip() if output.strip() != "🔄 **Concept Evolution Across Files**" else "No concept evolution patterns found"
+        return output.strip() if output.strip() != "[CYCLE] **Concept Evolution Across Files**" else "No concept evolution patterns found"
 
 
 class DetectInconsistenciesTool(BaseTool):
@@ -296,7 +296,7 @@ class DetectInconsistenciesTool(BaseTool):
             return f"No semantic naming inconsistencies found (threshold: {threshold})"
         
         # Format results
-        output = f"⚠️  **Semantic Naming Inconsistencies** (threshold: {threshold})\n\n"
+        output = f"[!] **Semantic Naming Inconsistencies** (threshold: {threshold})\n\n"
         
         for issue in inconsistencies:
             output += f"**{issue['concept'].upper()} CONCEPT** (similarity: {issue['avg_similarity']:.3f})\n"
@@ -332,7 +332,7 @@ class DetectInconsistenciesTool(BaseTool):
             return "No concept consistency issues found"
         
         # Format results
-        output = "🔍 **Concept Data Type Consistency Issues**\n\n"
+        output = "[SEARCH] **Concept Data Type Consistency Issues**\n\n"
         
         for issue in issues:
             output += f"**{issue['concept'].upper()}** has inconsistent types:\n"
@@ -396,11 +396,11 @@ class DetectInconsistenciesTool(BaseTool):
             return f"No abbreviation patterns found (threshold: {threshold})"
         
         # Format results
-        output = f"📝 **Potential Abbreviation Inconsistencies** (threshold: {threshold})\n\n"
+        output = f"[TEXT] **Potential Abbreviation Inconsistencies** (threshold: {threshold})\n\n"
         
         for abbrev in sorted(abbreviations, key=lambda x: x['similarity'], reverse=True):
-            output += f"**{abbrev['short']}** ↔ **{abbrev['long']}** (similarity: {abbrev['similarity']:.3f})\n"
-            output += f"  Files: {abbrev['files'][0]} → {abbrev['files'][1]}\n"
+            output += f"**{abbrev['short']}** <-> **{abbrev['long']}** (similarity: {abbrev['similarity']:.3f})\n"
+            output += f"  Files: {abbrev['files'][0]} -> {abbrev['files'][1]}\n"
             output += f"  Suggestion: Use consistent naming (`{abbrev['long']}`)\n\n"
         
         return output.strip()

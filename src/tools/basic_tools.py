@@ -192,7 +192,7 @@ class GetStatisticsTool(BaseTool):
         
         for file_info in matching_files:
             schema = self.store.get_file_schema(file_info['file_name'])
-            result.append(f"📄 {file_info['file_name']}")
+            result.append(f"[FILE] {file_info['file_name']}")
             result.append(f"  Rows: {file_info.get('total_rows', 'N/A'):,}")
             result.append(f"  Columns: {len(schema) if schema else 0}")
             result.append(f"  File size: {file_info.get('file_size', 'N/A')} bytes")

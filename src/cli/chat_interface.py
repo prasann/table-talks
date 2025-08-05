@@ -131,7 +131,7 @@ class ChatInterface:
         
         try:
             # Show loading indicator while processing query
-            with self.formatter.create_loading_indicator("🤖 Analyzing your query"):
+            with self.formatter.create_loading_indicator("[AI] Analyzing your query"):
                 response = self.agent.query(query)
             
             # Get the actual tools used from the agent

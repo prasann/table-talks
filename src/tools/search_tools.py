@@ -159,7 +159,7 @@ class SearchMetadataTool(BaseTool):
         output = f"Found {len(results)} semantically similar column(s) for '{search_term}':\n\n"
         
         for result in results:
-            similarity_indicator = "🎯" if result['semantic_similarity'] > 0.8 else "📍"
+            similarity_indicator = "[HIGH]" if result['semantic_similarity'] > 0.8 else "[MED]"
             output += f"{similarity_indicator} {result['file_name']}\n"
             output += f"  └─ {result['column_name']} ({result['data_type']})\n"
             output += f"     Similarity: {result['semantic_similarity']}, "

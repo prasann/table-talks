@@ -37,7 +37,7 @@ class TextFormatter(BaseFormatter):
         
         if search_type == 'column':
             for match in matches:
-                result.append(f"📄 {match['file_name']}")
+                result.append(f"[FILE] {match['file_name']}")
                 result.append(f"  └─ {match['column_name']} ({match['data_type']})")
                 result.append(f"     Nulls: {match.get('null_count', 'N/A')}, "
                             f"Unique: {match.get('unique_count', 'N/A')}")
@@ -45,7 +45,7 @@ class TextFormatter(BaseFormatter):
         
         elif search_type == 'file':
             for match in matches:
-                result.append(f"📄 {match['file_name']}")
+                result.append(f"[FILE] {match['file_name']}")
                 result.append(f"  Rows: {match.get('total_rows', 'N/A')}, "
                             f"Columns: {match.get('column_count', 'N/A')}")
                 if match.get('columns'):
@@ -55,7 +55,7 @@ class TextFormatter(BaseFormatter):
         
         else:  # type search
             for match in matches:
-                result.append(f"📄 {match['file_name']}")
+                result.append(f"[FILE] {match['file_name']}")
                 result.append(f"  └─ {match['column_name']} ({match['data_type']})")
                 result.append("")
         
@@ -93,7 +93,7 @@ class TextFormatter(BaseFormatter):
                 column_count = len(schema.get('columns', []))
                 total_rows = schema.get('total_rows', 'N/A')
                 
-                result.append(f"📄 {file_name}")
+                result.append(f"[FILE] {file_name}")
                 result.append(f"  Columns: {column_count}, Rows: {total_rows}")
                 result.append("")
         
@@ -110,12 +110,12 @@ class TextFormatter(BaseFormatter):
         
         if analysis_type == 'common_columns':
             for item in results:
-                result.append(f"📊 {item['column_name']}")
+                result.append(f"[COL] {item['column_name']}")
                 result.append(f"  Found in {item['file_count']} files: "
                             f"{', '.join(item['files'][:3])}"
                             f"{'...' if len(item['files']) > 3 else ''}")
                 if len(item['data_types']) > 1:
-                    result.append(f"  ⚠️  Multiple data types: {', '.join(item['data_types'])}")
+                    result.append(f"  [!] Multiple data types: {', '.join(item['data_types'])}")
                 result.append("")
         
         elif analysis_type == 'similar_schemas':
@@ -124,22 +124,22 @@ class TextFormatter(BaseFormatter):
                     # Handle new format with group_files
                     files = item['group_files']
                     if len(files) >= 2:
-                        result.append(f"🔗 {' ↔ '.join(files)}")
+                        result.append(f"[LINK] {' <-> '.join(files)}")
                         result.append(f"  Common columns ({item.get('common_column_count', len(item.get('common_columns', [])))}): {', '.join(item.get('common_columns', []))}")
                         result.append(f"  Similarity score: {item.get('similarity_score', 'N/A')}")
                     else:
-                        result.append(f"🔗 Group: {', '.join(files)}")
+                        result.append(f"[LINK] Group: {', '.join(files)}")
                         result.append(f"  Common columns: {', '.join(item.get('common_columns', []))}")
                 else:
                     # Handle legacy format with file1/file2 (for backward compatibility)
-                    result.append(f"🔗 {item['file1']} ↔ {item['file2']}")
+                    result.append(f"[LINK] {item['file1']} <-> {item['file2']}")
                     result.append(f"  Common columns: {item['common_columns']}")
                     result.append(f"  Files have {item['file1_total']} and {item['file2_total']} columns total")
                 result.append("")
         
         elif analysis_type == 'data_types':
             for item in results:
-                result.append(f"⚠️  {item['column_name']}")
+                result.append(f"[!] {item['column_name']}")
                 result.append(f"  Found {len(item['type_variations'])} different data types:")
                 for data_type, files in item['type_variations'].items():
                     result.append(f"    • {data_type}: {', '.join(files[:2])}"
@@ -156,7 +156,7 @@ class TextFormatter(BaseFormatter):
         result = [f"Found {len(files)} files:", ""]
         
         for file_info in files:
-            result.append(f"📄 {file_info['file_name']}")
+            result.append(f"[FILE] {file_info['file_name']}")
             result.append(f"  Size: {file_info.get('file_size', 'N/A')} bytes, "
                          f"Rows: {file_info.get('total_rows', 'N/A')}")
             result.append(f"  Last modified: {file_info.get('last_modified', 'N/A')}")

@@ -13,7 +13,7 @@ from pathlib import Path
 
 def main():
     """Run TableTalk tests."""
-    print("🧪 TableTalk Test Runner")
+    print("[*] TableTalk Test Runner")
     print("=" * 40)
     
     # Get project root
@@ -28,28 +28,31 @@ def main():
     env = os.environ.copy()
     env['PYTHONPATH'] = str(src_path)
     
-    print(f"📁 Project root: {project_root}")
-    print(f"🐍 Python path: {src_path}")
+    # Get Python executable
+    python_exe = sys.executable
     
-    # Run tests
-    cmd = [sys.executable, "-m", "pytest", "tests/test_end_to_end.py", "-v"]
+    print(f"[*] Project root: {project_root}")
+    print(f"[*] Python executable: {python_exe}")
+    print()
     
-    print(f"🚀 Running: {' '.join(cmd)}")
-    print("=" * 40)
+    # Build test command
+    cmd = [python_exe, "-m", "pytest", "tests/", "-v"]
+    print(f"[>] Running: {' '.join(cmd)}")
     
     try:
-        result = subprocess.run(cmd, env=env, check=False)
+        # Run tests
+        result = subprocess.run(cmd, cwd=project_root)
         
         if result.returncode == 0:
-            print("\n🎉 All tests passed!")
+            print("\n[+] All tests passed!")
         else:
-            print(f"\n❌ Tests failed with exit code {result.returncode}")
+            print(f"\n[-] Tests failed with exit code {result.returncode}")
             
-        return result.returncode
+        return result.returncode == 0
         
     except Exception as e:
-        print(f"❌ Error running tests: {e}")
-        return 1
+        print(f"[-] Error running tests: {e}")
+        return False
 
 
 if __name__ == "__main__":

@@ -48,11 +48,11 @@ class CLIFormatter:
             table.add_row("Agent Mode", status_data['mode'], "")
         
         if 'llm_available' in status_data:
-            llm_status = "✅ Available" if status_data['llm_available'] else "❌ Not Available"
+            llm_status = "[+] Available" if status_data['llm_available'] else "[-] Not Available"
             table.add_row("LLM", llm_status, status_data.get('model_name', ''))
         
         if 'function_calling' in status_data:
-            fc_status = "✅ Enabled" if status_data['function_calling'] else "❌ Disabled"
+            fc_status = "[+] Enabled" if status_data['function_calling'] else "[-] Disabled"
             table.add_row("Function Calling", fc_status, "")
         
         if 'tools_count' in status_data:
@@ -71,11 +71,11 @@ class CLIFormatter:
     
     def print_scan_progress(self, file_path, columns_count):
         """Format file scanning progress."""
-        self.console.print(f"[green]✓[/green] [cyan]{file_path}[/cyan]: [yellow]{columns_count}[/yellow] columns")
+        self.console.print(f"[green][+][/green] [cyan]{file_path}[/cyan]: [yellow]{columns_count}[/yellow] columns")
     
     def print_scan_error(self, file_path, error):
         """Format file scanning errors."""
-        self.console.print(f"[red]✗[/red] [cyan]{file_path}[/cyan]: [red]{escape(str(error))}[/red]")
+        self.console.print(f"[red][-][/red] [cyan]{file_path}[/cyan]: [red]{escape(str(error))}[/red]")
     
     def print_scan_start(self, directory_path):
         """Format scan start message."""
@@ -133,15 +133,15 @@ class CLIFormatter:
     
     def print_warning(self, message):
         """Format warning messages."""
-        self.console.print(f"[yellow]⚠️  {escape(str(message))}[/yellow]")
+        self.console.print(f"[yellow][!] {escape(str(message))}[/yellow]")
     
     def print_info(self, message):
         """Format info messages."""
-        self.console.print(f"[blue]ℹ️  {escape(str(message))}[/blue]")
+        self.console.print(f"[blue][i] {escape(str(message))}[/blue]")
     
     def print_success(self, message):
         """Format success messages."""
-        self.console.print(f"[green]✅ {escape(str(message))}[/green]")
+        self.console.print(f"[green][+] {escape(str(message))}[/green]")
     
     def print_welcome(self):
         """Format welcome message."""
@@ -151,7 +151,7 @@ class CLIFormatter:
         
         panel = Panel(
             welcome_text,
-            subtitle="📁 Commands: /scan <dir>, /help, /status, /exit",
+            subtitle="[CLI] Commands: /scan <dir>, /help, /status, /exit",
             border_style="bright_green"
         )
         self.console.print(panel)
@@ -159,12 +159,12 @@ class CLIFormatter:
     def print_mode_info(self, intelligent_mode=False):
         """Format mode information."""
         if intelligent_mode:
-            self.console.print("[green]✨ Intelligent mode: Ask complex questions and get smart insights![/green]")
+            self.console.print("[green][*] Intelligent mode: Ask complex questions and get smart insights![/green]")
     
     def print_goodbye(self):
         """Format goodbye messages."""
         self.console.print(Panel(
-            "[bold yellow]Thanks for using TableTalk! 👋[/bold yellow]",
+            "[bold yellow]Thanks for using TableTalk![/bold yellow]",
             title="[bold]Goodbye[/bold]",
             border_style="yellow"
         ))
