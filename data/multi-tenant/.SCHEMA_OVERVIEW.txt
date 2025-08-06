@@ -1,0 +1,6 @@
+File naming conventions:
+- US: customers_us.csv, orders_us.csv, products_us.csv, reviews_us.csv, payments_us.csv
+- EU: eu_customers.csv, eu_orders.csv, eu_products.csv, eu_reviews.csv, eu_payments.csv
+- Asia: customersAsia.csv, ordersAsia.csv, productsAsia.csv, reviewsAsia.csv, paymentsAsia.csv
+
+Each file has 40–50 columns, with schema and data noise for realistic multi-tenant testing.

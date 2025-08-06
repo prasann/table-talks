@@ -78,10 +78,10 @@ config/local.yaml
 config/production.yaml
 .env
 
-# Data directories (except sample)
-data/
+# Data directories (except sample and multi-tenant CSV files)
+data/*
 !data/sample/
-!data/sample/*.csv
+!data/multi-tenant/
 
 # Temporary files
 tmp/

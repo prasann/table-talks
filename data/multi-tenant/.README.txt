@@ -1,0 +1,6 @@
+Sample multi-tenant retail data files for schema comparison and testing.
+
+- Each file represents a table for a specific tenant (us, eu, asia).
+- Schemas are intentionally noisy: column names, order, and presence vary across tenants.
+- Each file contains 40–50 columns and 20–30 rows of sample data.
+- Use these files to test schema similarity/difference logic in your application.
