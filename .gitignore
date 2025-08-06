@@ -80,7 +80,6 @@ config/production.yaml
 
 # Data directories (except sample and multi-tenant CSV files)
 data/*
-!data/sample/
 !data/multi-tenant/
 
 # Temporary files

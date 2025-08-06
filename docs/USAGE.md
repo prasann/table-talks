@@ -2,6 +2,30 @@
 
 TableTalk is a natural language interface for exploring data schemas. Chat with your CSV and Parquet files using plain English!
 
+## 🏪 Included Multi-Tenant Retail Dataset
+
+TableTalk comes with a comprehensive multi-tenant retail dataset perfect for testing schema comparison and analysis features:
+
+### 📁 Dataset Structure
+- **15 CSV files** across **3 tenants** (US, EU, Asia)
+- **5 tables per tenant**: customers, orders, products, reviews, payments
+- **40-50 columns per table** with realistic retail data
+- **Intentional schema noise** for testing:
+  - **Naming variations**: `customer_id` vs `customerId` vs `cust_id`
+  - **File naming patterns**: `customers_us.csv` vs `eu_customers.csv` vs `customersAsia.csv`
+  - **Column order differences** across tenants
+  - **Type inconsistencies** and **format variations**
+
+### 🎯 Perfect for Testing
+This dataset is specifically designed to showcase TableTalk's capabilities:
+- **Schema difference analysis** across tenants
+- **Semantic column matching** despite naming variations
+- **Data quality issue detection** in multi-tenant environments
+- **Cross-tenant relationship discovery**
+- **Naming pattern inconsistency identification**
+
+Files are located in `data/multi-tenant/` and automatically included with your TableTalk installation.
+
 ## 🚀 Quick Start
 
 ### 1. Setup & Start
@@ -55,56 +79,83 @@ Just type what you want to know!
 
 ## 🧪 Testing Prompts
 
-Here are specific prompts you can use to test different functionality:
+Here are specific prompts you can use to test different functionality with the included multi-tenant retail dataset:
 
 ### Basic Schema Operations
 ```bash
 "List all files"
-"Show me the schema for customers"
-"Get file statistics"
-"What columns are in orders.csv?"
+"Show me the schema for customers_us"
+"What columns are in eu_orders.csv?"
+"Get file statistics for multi-tenant data"
+"Show me the structure of paymentsAsia.csv"
 ```
 
-### Schema Relationships & Differences
+### Multi-Tenant Schema Analysis
 ```bash
-# Traditional relationships
-"Find common columns across files"
-"What columns appear in 2 or more files?"
+# Compare schemas across tenants
+"Find schema differences between customers_us and eu_customers"
+"Compare order schemas across all tenants"
+"Analyze differences between US and Asia payment schemas"
 
-# Schema differences (our new feature!)
+# Cross-tenant relationships
+"Find common columns across all customer files"
+"What payment columns appear in all regions?"
+"Compare product schemas between tenants with semantic analysis"
+```
+
+### Schema Differences (Perfect for Multi-Tenant Testing!)
+```bash
+# Comprehensive multi-tenant analysis
 "Find schema differences between all files"
 "Analyze differences between schemas with semantic analysis"
-"find relationships with analysis type schema_differences"
+"Compare schemas across tenants for customers tables"
 
-# Semantic relationships
-"Find similar schemas semantically"
-"Group columns by semantic concepts"
-"Find semantic groups with threshold 0.7"
+# Specific tenant comparisons
+"Find differences between customers_us and customersAsia"
+"Compare eu_orders and ordersAsia schemas"
+"Analyze payment schema differences across regions"
 ```
 
-### Data Quality Testing
+### Data Quality & Naming Inconsistencies
 ```bash
-"Detect data type inconsistencies"
-"Find naming pattern issues"
-"Check for semantic naming problems"
-"Find abbreviation inconsistencies"
+# Perfect for our noisy multi-tenant data!
+"Detect data type inconsistencies across tenants"
+"Find naming pattern issues in customer files"
+"Check for semantic naming problems across regions"
+"Find column naming variations between tenants"
+"Identify abbreviation inconsistencies in schemas"
 ```
 
-### Semantic Search Testing
+### Semantic Search with Retail Data
 ```bash
-"Find user identifiers semantically"
+# Customer identification
+"Find customer identifiers semantically"
+"Show me user ID columns across all files"
+"Find customer-related fields semantically"
+
+# Temporal data
 "Show me timestamp columns"
-"Find customer related fields semantically"
+"Find date-related fields across tenants"
+"Search for order date variations"
+
+# Financial data
 "Search for price related columns"
-"Find ID fields across all files"
+"Find payment amount fields semantically"
+"Show me currency-related columns"
+
+# Product information
+"Find product identifier columns"
+"Search for inventory-related fields"
+"Show me product description columns"
 ```
 
-### Advanced Analysis
+### Advanced Multi-Tenant Analysis
 ```bash
-"Run concept evolution analysis"
-"Check concept consistency across files"
-"Find potential missing columns"
-"Analyze schema similarity with threshold 0.8"
+"Run concept evolution analysis across tenants"
+"Check concept consistency between regions"
+"Find potential missing columns in Asian schemas"
+"Analyze schema similarity between EU and US with threshold 0.8"
+"Group payment columns by semantic concepts across tenants"
 ```
 
 ## 🧠 Semantic Search
@@ -133,64 +184,108 @@ pip install sentence-transformers scikit-learn
 ## �📊 Example Session
 
 ```
+## 📊 Example Session
+
+```
 📊 TableTalk - Your Data Schema Explorer
 
 > scan
 🔍 Scanning data files...
-✅ Found 4 files: customers.csv, orders.csv, reviews.csv, products.csv
+✅ Found 15 multi-tenant files: customers_us.csv, eu_customers.csv, customersAsia.csv, 
+   orders_us.csv, eu_orders.csv, ordersAsia.csv, products_us.csv, eu_products.csv, 
+   productsAsia.csv, reviews_us.csv, eu_reviews.csv, reviewsAsia.csv, 
+   payments_us.csv, eu_payments.csv, paymentsAsia.csv
 
 > What files do we have?
-📁 **Available Files:**
-• customers.csv - 6 columns, 1.2KB
-• orders.csv - 5 columns, 2.1KB
-• reviews.csv - 4 columns, 0.8KB
+📁 **Multi-Tenant Retail Dataset:**
+• **US Region (5 files):** customers_us.csv, orders_us.csv, products_us.csv, reviews_us.csv, payments_us.csv
+• **EU Region (5 files):** eu_customers.csv, eu_orders.csv, eu_products.csv, eu_reviews.csv, eu_payments.csv  
+• **Asia Region (5 files):** customersAsia.csv, ordersAsia.csv, productsAsia.csv, reviewsAsia.csv, paymentsAsia.csv
 
-> Find data quality issues
-🔍 **Data Quality Analysis:**
-⚠️ customer_id: int64 in customers.csv vs object in orders.csv
-⚠️ Column naming: customer_id vs cust_id variations
+> Show me the schema for customers_us
+📋 **customers_us.csv Schema:**
+• customer_id (integer) - Customer identifier
+• first_name (string) - Customer first name
+• last_name (string) - Customer last name
+• email (string) - Customer email address
+• phone (string) - Phone number
+• address (string) - Customer address
+• signup_date (string) - Registration date
+• loyalty_points (integer) - Loyalty program points
+• preferred_language (string) - Language preference
+• marketing_opt_in (boolean) - Marketing consent
+... and 34 more columns
 
-> Find user identifiers semantically
-📍 reviews.csv → user_id (similarity: 0.679)
-📍 customers.csv → customer_id (similarity: 0.593)
+> Find schema differences between customers_us and eu_customers
+**Schema Difference Analysis:**
 
-> find schema differences with semantic analysis
-[DIFF] **Schema Difference Analysis**
+**customers_us.csv** vs **eu_customers.csv**
+  Overall similarity: 0.891
 
-**customers.csv** vs **orders.csv**
-  Overall similarity: 0.091
+  Column naming differences:
+    • customer_id vs customerId
+    • first_name vs firstName
+    • last_name vs lastName
+    • email vs emailAddress
+    • phone vs phoneNumber
+    • address vs streetAddress
+    • signup_date vs registrationDate
+    • loyalty_points vs points
+    • preferred_language vs language
+    • marketing_opt_in vs marketingConsent
 
-  Columns only in customers.csv (5):
-    • last_name (string)
-    • email (string)
-    • first_name (string)
-    • signup_date (string)
-    • is_active (boolean)
+  Semantic equivalents (10):
+    • customer_id ↔ customerId (similarity: 0.95)
+    • first_name ↔ firstName (similarity: 0.98)
+    • email ↔ emailAddress (similarity: 0.89)
+    • phone ↔ phoneNumber (similarity: 0.92)
+    • address ↔ streetAddress (similarity: 0.87)
 
-  Columns only in orders.csv (5):
-    • quantity (integer)
-    • price (float)
-    • product_name (string)
-    • order_date (string)
-    • order_id (integer)
+> Find customer identifiers semantically
+📍 **Customer Identifier Fields Found:**
+• customers_us.csv → customer_id (similarity: 1.00)
+• eu_customers.csv → customerId (similarity: 0.95)
+• customersAsia.csv → cust_id (similarity: 0.91)
+• orders_us.csv → customer_id (similarity: 1.00)
+• eu_orders.csv → customerId (similarity: 0.95)
+• ordersAsia.csv → cust_id (similarity: 0.91)
+• reviews_us.csv → customer_id (similarity: 1.00)
+• eu_reviews.csv → customerId (similarity: 0.95)
+• reviewsAsia.csv → cust_id (similarity: 0.91)
 
-  Type mismatches (1):
-    • customer_id: integer vs string
+> Check for naming pattern issues across tenants
+🔍 **Multi-Tenant Naming Analysis:**
+⚠️ **Inconsistent Naming Patterns:**
+• Customer ID: customer_id (US) vs customerId (EU) vs cust_id (Asia)
+• Order ID: order_id (US) vs orderId (EU) vs orderID (Asia)
+• Product ID: product_id (US) vs productId (EU) vs prod_id (Asia)
+• Date fields: order_date (US) vs orderDate (EU) vs orderDt (Asia)
+• Address: address (US) vs streetAddress (EU) vs address (Asia)
 
-  Semantic equivalents (1):
-    • customer_id ↔ user_id (similarity: 0.85)
+⚠️ **Type Mismatches:**
+• customer_id: integer (US) vs string (EU) vs integer (Asia)
+• price: float (US) vs decimal (EU) vs float (Asia)
 
----
+> Find schema differences with semantic analysis across all files
+**Multi-Tenant Schema Analysis** (Top differences)
 
-**legacy_users.csv** vs **orders.csv**
-  Overall similarity: 0.333
+**Customers Tables Comparison:**
+  US ↔ EU similarity: 0.891 (10 naming differences, same structure)
+  US ↔ Asia similarity: 0.856 (15 naming differences, column order varies)
+  EU ↔ Asia similarity: 0.823 (20 naming differences, mixed conventions)
 
-  Type mismatches (1):
-    • price: string vs float
+**Orders Tables Comparison:**
+  US ↔ EU similarity: 0.867 (8 naming differences)
+  US ↔ Asia similarity: 0.798 (12 naming differences, abbreviated columns)
+  EU ↔ Asia similarity: 0.745 (18 naming differences, format inconsistencies)
 
-  Potentially missing columns:
-    • orders.csv might need: signup_date (similar to none found)
-    • legacy_users.csv might need: order_date (similar to none found)
+**Key Findings:**
+• US uses snake_case (customer_id, order_date)
+• EU uses camelCase (customerId, orderDate)  
+• Asia uses mixed/abbreviated (cust_id, orderDt)
+• All regions have same logical structure but different naming
+• Semantic equivalents found across 95% of columns
+```
 ```
 
 ## 🎯 What TableTalk Can Do
@@ -316,15 +411,17 @@ ollama serve
 - **threshold**: Specify like `"threshold 0.7"` (0.5-0.9 range)
 
 ### Sample Data for Testing
-If you don't have data files, create sample CSV files with:
+TableTalk includes a comprehensive multi-tenant retail dataset in `data/multi-tenant/` with 15 CSV files across 3 regions. 
+
+**If you want to create additional test data**, here are some examples:
 ```bash
-# customers.csv
+# simple_customers.csv
 customer_id,first_name,last_name,email,signup_date,is_active
 1,John,Doe,john@email.com,2023-01-01,true
 
-# orders.csv  
+# simple_orders.csv  
 order_id,customer_id,product_name,price,quantity,order_date
 1,1,Widget,29.99,2,2023-01-15
 ```
 
-This gives you overlapping schemas to test schema differences!
+**But we recommend starting with the included multi-tenant dataset** which provides rich, realistic scenarios for testing schema differences, semantic matching, and data quality analysis!
