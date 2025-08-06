@@ -9,7 +9,7 @@ from .core.semantic_search import SemanticConsistencyChecker, SemanticSearcher
 class FindRelationshipsTool(BaseTool):
     """Tool for finding relationships between files and columns with semantic capabilities."""
     
-    description = "Find relationships like common columns, similar schemas, or semantic concept groups"
+    description = "Find relationships like common columns, similar schemas, semantic concept groups, or detailed schema differences. Only accepts analysis_type, threshold, and semantic parameters."
     
     def __init__(self, metadata_store):
         super().__init__(metadata_store)
@@ -22,29 +22,30 @@ class FindRelationshipsTool(BaseTool):
             "properties": {
                 "analysis_type": {
                     "type": "string",
-                    "enum": ["common_columns", "similar_schemas", "semantic_groups", "concept_evolution"],
-                    "description": "Type of relationship analysis to perform",
+                    "enum": ["common_columns", "similar_schemas", "semantic_groups", "concept_evolution", "schema_differences"],
+                    "description": "REQUIRED: Type of relationship analysis to perform. Must be one of the enum values only.",
                     "default": "common_columns"
                 },
                 "threshold": {
                     "type": "number",
-                    "description": "Threshold for relationships (2+ for common_columns, 0.6-0.8 for semantic)",
+                    "description": "Optional: Threshold for relationships (2+ for common_columns, 0.6-0.8 for semantic)",
                     "default": 2
                 },
                 "semantic": {
                     "type": "boolean",
-                    "description": "Enable semantic analysis for intelligent relationship detection",
+                    "description": "Optional: Enable semantic analysis for intelligent relationship detection",
                     "default": False
                 }
             },
-            "required": []
+            "required": [],
+            "additionalProperties": False
         }
     
     def execute(self, analysis_type: str = "common_columns", threshold: float = 2, semantic: bool = False) -> str:
         """Find relationships between files and columns with optional semantic analysis."""
         try:
             # Handle semantic analysis types
-            if analysis_type in ["similar_schemas", "semantic_groups", "concept_evolution"] and semantic:
+            if analysis_type in ["similar_schemas", "semantic_groups", "concept_evolution", "schema_differences"] and semantic:
                 return self._semantic_analysis(analysis_type, threshold)
             else:
                 return self._traditional_analysis(analysis_type, int(threshold))
@@ -74,6 +75,8 @@ class FindRelationshipsTool(BaseTool):
                 return self._find_semantic_groups(threshold)
             elif analysis_type == "concept_evolution":
                 return self._analyze_concept_evolution(threshold)
+            elif analysis_type == "schema_differences":
+                return self._find_schema_differences(threshold)
             else:
                 return f"Semantic analysis type '{analysis_type}' not supported"
                 
@@ -201,6 +204,160 @@ class FindRelationshipsTool(BaseTool):
         
         return output.strip() if output.strip() != "[CYCLE] **Concept Evolution Across Files**" else "No concept evolution patterns found"
 
+    def _find_schema_differences(self, threshold: float) -> str:
+        """Find and analyze differences between schemas."""
+        # Get all schemas
+        files = self.store.list_all_files()
+        schemas = {}
+        
+        for file_info in files:
+            schema = self.store.get_file_schema(file_info['file_name'])
+            if schema:
+                # Convert list format to dictionary with data types
+                schema_dict = {}
+                for col_info in schema:
+                    if isinstance(col_info, dict) and 'column_name' in col_info:
+                        schema_dict[col_info['column_name']] = col_info.get('data_type', 'unknown')
+                schemas[file_info['file_name']] = schema_dict
+        
+        if len(schemas) < 2:
+            return "Need at least 2 files to compare schema differences"
+        
+        # Find schema differences between all pairs
+        from .core.semantic_search import SchemaSimilarityAnalyzer, SemanticSearcher
+        semantic_analyzer = SchemaSimilarityAnalyzer()
+        searcher = SemanticSearcher()
+        
+        differences = []
+        file_names = list(schemas.keys())
+        
+        for i, file1 in enumerate(file_names):
+            for file2 in file_names[i+1:]:
+                diff_analysis = self._analyze_schema_difference(
+                    file1, schemas[file1], file2, schemas[file2], threshold, searcher
+                )
+                if diff_analysis:
+                    differences.append(diff_analysis)
+        
+        if not differences:
+            return "No significant schema differences found"
+        
+        # Format results
+        output = "[DIFF] **Schema Difference Analysis**\n\n"
+        
+        for diff in differences:
+            output += f"**{diff['file1']}** vs **{diff['file2']}**\n"
+            output += f"  Overall similarity: {diff['similarity']:.3f}\n\n"
+            
+            if diff['unique_to_file1']:
+                output += f"  Columns only in {diff['file1']} ({len(diff['unique_to_file1'])}):\n"
+                for col_name, data_type in diff['unique_to_file1'].items():
+                    output += f"    • {col_name} ({data_type})\n"
+                output += "\n"
+            
+            if diff['unique_to_file2']:
+                output += f"  Columns only in {diff['file2']} ({len(diff['unique_to_file2'])}):\n"
+                for col_name, data_type in diff['unique_to_file2'].items():
+                    output += f"    • {col_name} ({data_type})\n"
+                output += "\n"
+            
+            if diff['type_mismatches']:
+                output += f"  Type mismatches ({len(diff['type_mismatches'])}):\n"
+                for mismatch in diff['type_mismatches']:
+                    output += f"    • {mismatch['column']}: {mismatch['type1']} vs {mismatch['type2']}\n"
+                output += "\n"
+            
+            if diff['semantic_equivalents']:
+                output += f"  Semantic equivalents ({len(diff['semantic_equivalents'])}):\n"
+                for equiv in diff['semantic_equivalents']:
+                    output += f"    • {equiv['col1']} <-> {equiv['col2']} "
+                    output += f"(similarity: {equiv['similarity']:.3f})\n"
+                output += "\n"
+            
+            if diff['potential_missing']:
+                output += f"  Potentially missing columns:\n"
+                for missing in diff['potential_missing']:
+                    output += f"    • {missing['file']} might need: {missing['column']} "
+                    output += f"(similar to {missing['similar_to']})\n"
+                output += "\n"
+            
+            output += "---\n\n"
+        
+        return output.strip()
+    
+    def _analyze_schema_difference(self, file1: str, schema1: dict, file2: str, schema2: dict, 
+                                 threshold: float, searcher) -> dict:
+        """Analyze differences between two specific schemas."""
+        # Basic set operations
+        cols1_set = set(schema1.keys())
+        cols2_set = set(schema2.keys())
+        
+        common_columns = cols1_set & cols2_set
+        unique_to_file1 = {col: schema1[col] for col in cols1_set - cols2_set}
+        unique_to_file2 = {col: schema2[col] for col in cols2_set - cols1_set}
+        
+        # Check for type mismatches in common columns
+        type_mismatches = []
+        for col in common_columns:
+            if schema1[col] != schema2[col]:
+                type_mismatches.append({
+                    'column': col,
+                    'type1': schema1[col],
+                    'type2': schema2[col]
+                })
+        
+        # Find semantic equivalents (similar columns with different names)
+        semantic_equivalents = []
+        potential_missing = []
+        
+        # Check if unique columns in file1 have semantic equivalents in file2
+        for col1 in unique_to_file1.keys():
+            cols2_tuples = [(col, file2) for col in unique_to_file2.keys()]
+            similar_matches = searcher.find_similar_columns(col1, cols2_tuples, threshold)
+            
+            if similar_matches:
+                best_match = similar_matches[0]
+                semantic_equivalents.append({
+                    'col1': col1,
+                    'col2': best_match.column_name,
+                    'similarity': best_match.similarity
+                })
+                # Remove from unique lists since they're semantic equivalents
+                if best_match.column_name in unique_to_file2:
+                    del unique_to_file2[best_match.column_name]
+            else:
+                # This column might be missing from file2
+                potential_missing.append({
+                    'file': file2,
+                    'column': col1,
+                    'similar_to': 'none found'
+                })
+        
+        # Check remaining unique columns in file2 for potential missing in file1
+        for col2 in list(unique_to_file2.keys()):
+            potential_missing.append({
+                'file': file1,
+                'column': col2,
+                'similar_to': 'none found'
+            })
+        
+        # Calculate overall similarity
+        total_columns = len(cols1_set | cols2_set)
+        matching_columns = len(common_columns) + len(semantic_equivalents)
+        similarity = matching_columns / total_columns if total_columns > 0 else 0.0
+        
+        return {
+            'file1': file1,
+            'file2': file2,
+            'similarity': similarity,
+            'unique_to_file1': unique_to_file1,
+            'unique_to_file2': unique_to_file2,
+            'type_mismatches': type_mismatches,
+            'semantic_equivalents': semantic_equivalents,
+            'potential_missing': potential_missing,
+            'common_columns': len(common_columns)
+        }
+
 
 class DetectInconsistenciesTool(BaseTool):
     """Tool for detecting data inconsistencies with semantic naming analysis."""
@@ -227,7 +384,8 @@ class DetectInconsistenciesTool(BaseTool):
                     "default": 0.8
                 }
             },
-            "required": []
+            "required": [],
+            "additionalProperties": False
         }
     
     def execute(self, check_type: str = "data_types", threshold: float = 0.8) -> str:

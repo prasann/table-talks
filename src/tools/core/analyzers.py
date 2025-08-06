@@ -13,6 +13,8 @@ class RelationshipAnalyzer(BaseAnalyzer):
             return self._find_common_columns(**kwargs)
         elif analysis_type == "similar_schemas":
             return self._find_similar_schemas(**kwargs)
+        elif analysis_type == "schema_differences":
+            return self._find_schema_differences(**kwargs)
         else:
             raise ValueError(f"Unknown analysis type: {analysis_type}")
     
@@ -142,6 +144,78 @@ class RelationshipAnalyzer(BaseAnalyzer):
         except Exception as e:
             self.logger.error(f"Error in _find_similar_schemas_basic: {str(e)}")
             return []
+    
+    def _find_schema_differences(self, **kwargs) -> List[Dict[str, Any]]:
+        """Find differences between schemas (basic version without semantic analysis)."""
+        try:
+            files = self.store.list_all_files()
+            if len(files) < 2:
+                return []
+            
+            # Get schemas for all files
+            file_schemas = {}
+            for file_info in files:
+                schema = self.store.get_file_schema(file_info['file_name'])
+                if schema:
+                    # Convert to dict with data types
+                    schema_dict = {}
+                    for col_info in schema:
+                        schema_dict[col_info['column_name']] = col_info['data_type']
+                    file_schemas[file_info['file_name']] = schema_dict
+            
+            # Compare all pairs of files
+            differences = []
+            file_names = list(file_schemas.keys())
+            
+            for i, file1 in enumerate(file_names):
+                for file2 in file_names[i+1:]:
+                    diff = self._basic_schema_diff(file1, file_schemas[file1], 
+                                                 file2, file_schemas[file2])
+                    if diff:
+                        differences.append(diff)
+            
+            return differences
+            
+        except Exception as e:
+            self.logger.error(f"Error finding schema differences: {str(e)}")
+            return []
+    
+    def _basic_schema_diff(self, file1: str, schema1: dict, file2: str, schema2: dict) -> dict:
+        """Basic schema difference analysis without semantic capabilities."""
+        cols1_set = set(schema1.keys())
+        cols2_set = set(schema2.keys())
+        
+        common_columns = cols1_set & cols2_set
+        unique_to_file1 = {col: schema1[col] for col in cols1_set - cols2_set}
+        unique_to_file2 = {col: schema2[col] for col in cols2_set - cols1_set}
+        
+        # Check for type mismatches in common columns
+        type_mismatches = []
+        for col in common_columns:
+            if schema1[col] != schema2[col]:
+                type_mismatches.append({
+                    'column': col,
+                    'type1': schema1[col],
+                    'type2': schema2[col]
+                })
+        
+        # Calculate basic similarity
+        total_columns = len(cols1_set | cols2_set)
+        matching_columns = len(common_columns) - len(type_mismatches)
+        similarity = matching_columns / total_columns if total_columns > 0 else 0.0
+        
+        return {
+            'file1': file1,
+            'file2': file2,
+            'similarity': similarity,
+            'common_columns_count': len(common_columns),
+            'unique_to_file1_count': len(unique_to_file1),
+            'unique_to_file2_count': len(unique_to_file2),
+            'type_mismatches_count': len(type_mismatches),
+            'unique_to_file1': unique_to_file1,
+            'unique_to_file2': unique_to_file2,
+            'type_mismatches': type_mismatches
+        }
 
 
 class ConsistencyChecker(BaseAnalyzer):

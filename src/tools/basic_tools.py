@@ -16,11 +16,12 @@ class GetFilesTool(BaseTool):
             "type": "object",
             "properties": {
                 "pattern": {
-                    "type": "string", 
+                    "type": "string",
                     "description": "Optional pattern to filter file names"
                 }
             },
-            "required": []
+            "required": [],
+            "additionalProperties": False
         }
     
     def execute(self, pattern: str = None) -> str:
@@ -59,7 +60,8 @@ class GetSchemasTool(BaseTool):
                     "default": True
                 }
             },
-            "required": []
+            "required": [],
+            "additionalProperties": False
         }
     
     def execute(self, file_pattern: str = None, detailed: bool = True) -> str:
@@ -131,7 +133,8 @@ class GetStatisticsTool(BaseTool):
                     "description": "Specific target (file name, column name) when scope is not database"
                 }
             },
-            "required": []
+            "required": [],
+            "additionalProperties": False
         }
     
     def execute(self, scope: str = "database", target: str = None) -> str:

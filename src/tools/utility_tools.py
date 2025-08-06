@@ -30,7 +30,8 @@ class CompareItemsTool(BaseTool):
                     "default": "schemas"
                 }
             },
-            "required": ["item1", "item2"]
+            "required": ["item1", "item2"],
+            "additionalProperties": False
         }
     
     def execute(self, item1: str, item2: str, comparison_type: str = "schemas") -> str:
@@ -116,7 +117,8 @@ class RunAnalysisTool(BaseTool):
                     "description": "Natural language description of the analysis needed"
                 }
             },
-            "required": ["description"]
+            "required": ["description"],
+            "additionalProperties": False
         }
     
     def execute(self, description: str) -> str:

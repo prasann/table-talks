@@ -39,7 +39,8 @@ class SearchMetadataTool(BaseTool):
                     "default": False
                 }
             },
-            "required": ["search_term"]
+            "required": ["search_term"],
+            "additionalProperties": False
         }
     
     def execute(self, search_term: str = None, search_type: str = "column", semantic: bool = False) -> str:
