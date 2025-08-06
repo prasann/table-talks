@@ -10,6 +10,7 @@ from ..metadata.metadata_store import MetadataStore
 from ..metadata.schema_extractor import SchemaExtractor
 from ..agent.schema_agent import SchemaAgent
 from ..utils.session_logger import QuerySessionLogger
+from ..utils.export_manager import ExportManager
 from .rich_formatter import CLIFormatter
 
 
@@ -27,6 +28,16 @@ class ChatInterface:
             log_file=config.get('logging', {}).get('file', 'logs/tabletalk.log'),
             verbose=verbose_logging
         )
+        
+        # Initialize export manager
+        export_config = config.get('export', {})
+        if export_config.get('enabled', True):
+            self.export_manager = ExportManager(
+                base_path=export_config.get('base_path', './exports'),
+                auto_export_threshold=export_config.get('auto_export_threshold', 100)
+            )
+        else:
+            self.export_manager = None
         
         # Initialize components
         self.metadata_store = MetadataStore(config['database']['path'])
@@ -117,6 +128,8 @@ class ChatInterface:
         elif cmd == '/strategy':
             # Remove strategy switching - SchemaAgent auto-detects
             self._show_agent_info()
+        elif cmd == '/exports':
+            self._show_export_status()
         else:
             self.formatter.print_error(f"Unknown command: {cmd}")
             self.formatter.print_info("Use /help for available commands")
@@ -138,10 +151,37 @@ class ChatInterface:
             # Get the actual tools used from the agent
             tools_used = self.agent.get_last_tools_used() if hasattr(self.agent, 'get_last_tools_used') else []
             
-            # Log successful completion with actual tools used
-            self.session_logger.log_query_success(response, tools_used=tools_used)
-            
-            self.formatter.print_agent_response(response)
+            # Check if result should be exported
+            if self.export_manager and self.export_manager.should_export(response):
+                try:
+                    # Export the result and get summary
+                    file_path, summary = self.export_manager.export_result(query, response)
+                    
+                    if file_path:
+                        # Show export notification and summary
+                        line_count = self.export_manager._count_content_lines(response)
+                        self.formatter.print_info(f"Large result detected - {line_count} lines")
+                        self.formatter.print_success(f"Full results exported to: {file_path}")
+                        self.formatter.print_agent_response(summary)
+                        
+                        # Add export info to logs
+                        self.session_logger.log_query_success(f"Result exported to {file_path}", tools_used=tools_used)
+                    else:
+                        # Export failed, show original result
+                        self.session_logger.log_query_success(response, tools_used=tools_used)
+                        self.formatter.print_agent_response(response)
+                        
+                except Exception as export_error:
+                    # Export failed, log and show original result
+                    self.session_logger.log_query_error(f"Export failed: {export_error}")
+                    self.session_logger.log_query_success(response, tools_used=tools_used)
+                    self.formatter.print_warning(f"Export failed: {export_error}")
+                    self.formatter.print_agent_response(response)
+            else:
+                # Normal result, no export needed
+                self.session_logger.log_query_success(response, tools_used=tools_used)
+                self.formatter.print_agent_response(response)
+                
         except Exception as e:
             # Log query error
             self.session_logger.log_query_error(str(e))
@@ -222,3 +262,25 @@ class ChatInterface:
     def _show_help(self):
         """Show help message."""
         self.formatter.print_command_help()
+    
+    def _show_export_status(self):
+        """Show export statistics and status."""
+        if not self.export_manager:
+            self.formatter.print_warning("Export functionality is disabled")
+            return
+        
+        stats = self.export_manager.get_export_stats()
+        
+        # Display export statistics
+        if 'error' in stats:
+            self.formatter.print_error(f"Error getting export stats: {stats['error']}")
+        else:
+            export_info = f"""Export Status:
+  Export Directory: {stats.get('export_path', 'Unknown')}
+  Total Exports: {stats.get('total_exports', 0)}
+  Export Folders: {stats.get('export_folders', 0)} days
+  Auto-export Threshold: {self.export_manager.auto_export_threshold} lines
+  
+Recent exports can be found in: {self.export_manager.base_path}"""
+            
+            self.formatter.print_info(export_info)

@@ -1,0 +1,137 @@
+================================================================================
+TableTalk Export
+================================================================================
+Date: 2025-08-06
+Time: 13:57:58
+Query: "test schema differences query"
+Result Size: 120 lines (auto-exported due to size)
+
+================================================================================
+RESULT
+================================================================================
+
+Line 1
+Line 2
+Line 1
+Line 2
+Line 1
+Line 2
+Line 1
+Line 2
+Line 1
+Line 2
+Line 1
+Line 2
+Line 1
+Line 2
+Line 1
+Line 2
+Line 1
+Line 2
+Line 1
+Line 2
+Line 1
+Line 2
+Line 1
+Line 2
+Line 1
+Line 2
+Line 1
+Line 2
+Line 1
+Line 2
+Line 1
+Line 2
+Line 1
+Line 2
+Line 1
+Line 2
+Line 1
+Line 2
+Line 1
+Line 2
+Line 1
+Line 2
+Line 1
+Line 2
+Line 1
+Line 2
+Line 1
+Line 2
+Line 1
+Line 2
+Line 1
+Line 2
+Line 1
+Line 2
+Line 1
+Line 2
+Line 1
+Line 2
+Line 1
+Line 2
+Line 1
+Line 2
+Line 1
+Line 2
+Line 1
+Line 2
+Line 1
+Line 2
+Line 1
+Line 2
+Line 1
+Line 2
+Line 1
+Line 2
+Line 1
+Line 2
+Line 1
+Line 2
+Line 1
+Line 2
+Line 1
+Line 2
+Line 1
+Line 2
+Line 1
+Line 2
+Line 1
+Line 2
+Line 1
+Line 2
+Line 1
+Line 2
+Line 1
+Line 2
+Line 1
+Line 2
+Line 1
+Line 2
+Line 1
+Line 2
+Line 1
+Line 2
+Line 1
+Line 2
+Line 1
+Line 2
+Line 1
+Line 2
+Line 1
+Line 2
+Line 1
+Line 2
+Line 1
+Line 2
+Line 1
+Line 2
+Line 1
+Line 2
+Line 1
+Line 2
+
+
+================================================================================
+END OF RESULT
+================================================================================

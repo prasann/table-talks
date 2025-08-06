@@ -98,6 +98,7 @@ class CLIFormatter:
   [yellow]/scan <directory>[/yellow]  - Scan files for schema information
   [yellow]/status[/yellow]            - Show system status
   [yellow]/strategy[/yellow]          - Show agent information
+  [yellow]/exports[/yellow]           - Show export status and statistics
   [yellow]/help[/yellow]              - Show this help
   [yellow]/exit[/yellow]              - Exit TableTalk
 
@@ -108,6 +109,10 @@ class CLIFormatter:
   [italic]"What columns are in orders?"[/italic]
   [italic]"How many rows are in each file?"[/italic]
   [italic]"Show me tables with email addresses"[/italic]
+  [italic]"Find schema differences between all files"[/italic]
+
+[bold blue]Export Info:[/bold blue]
+  Large results (>100 lines) are automatically exported to [cyan]./exports/YYYY-MM-DD/[/cyan]
         """.strip()
         
         self.console.print(Panel(help_text, title="Help", border_style="blue"))

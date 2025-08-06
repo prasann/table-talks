@@ -1,0 +1,917 @@
+================================================================================
+TableTalk Export
+================================================================================
+Date: 2025-08-06
+Time: 13:59:31
+Query: "Test large schema differences query"
+Result Size: 681 lines (auto-exported due to size)
+
+================================================================================
+RESULT
+================================================================================
+
+[DIFF] **Schema Difference Analysis**
+
+**customers.csv** vs **legacy_users.csv**
+  Overall similarity: 42.86%
+
+📊 **Detailed Differences:**
+
+🔴 **Column Type Mismatches:**
+  • customer_id (integer) ↔ user_id (integer) - Different column names for same concept
+  • email (varchar) ↔ email_address (varchar) - Different column names  
+  • name (varchar) ↔ full_name (varchar) - Different column names
+  • address (varchar) ↔ street_address (varchar) - Different specificity
+  • phone (varchar) ↔ phone_number (varchar) - Different column names
+  • registration_date (date) ↔ signup_date (date) - Different column names
+
+🟡 **Missing Columns:**
+  • customers.csv has: customer_id, email, name, address, phone, registration_date
+  • legacy_users.csv has: user_id, email_address, full_name, street_address, phone_number, signup_date
+
+🔵 **Additional Analysis:**
+  • Both schemas represent user/customer data
+  • Legacy schema uses more descriptive column names
+  • Modern schema uses shorter, more concise names
+  • Data types are compatible across both schemas
+  • No structural incompatibilities detected
+
+**Recommendation:** Create mapping rules for data migration between schemas.
+
+**customers.csv** vs **orders.csv**
+  Overall similarity: 16.67%
+
+📊 **Detailed Differences:**
+
+🔴 **Column Type Mismatches:**
+  • customer_id appears in both but different contexts
+  • No other matching columns detected
+
+🟡 **Schema Structure Differences:**
+  • customers.csv: User profile data (6 columns)
+  • orders.csv: Transaction data (6 columns)
+  • Different business domains entirely
+
+🔵 **Relationship Analysis:**
+  • customer_id acts as foreign key relationship
+  • Schemas complement each other in business model
+  • No direct schema compatibility issues[DIFF] **Schema Difference Analysis**
+
+**customers.csv** vs **legacy_users.csv**
+  Overall similarity: 42.86%
+
+📊 **Detailed Differences:**
+
+🔴 **Column Type Mismatches:**
+  • customer_id (integer) ↔ user_id (integer) - Different column names for same concept
+  • email (varchar) ↔ email_address (varchar) - Different column names  
+  • name (varchar) ↔ full_name (varchar) - Different column names
+  • address (varchar) ↔ street_address (varchar) - Different specificity
+  • phone (varchar) ↔ phone_number (varchar) - Different column names
+  • registration_date (date) ↔ signup_date (date) - Different column names
+
+🟡 **Missing Columns:**
+  • customers.csv has: customer_id, email, name, address, phone, registration_date
+  • legacy_users.csv has: user_id, email_address, full_name, street_address, phone_number, signup_date
+
+🔵 **Additional Analysis:**
+  • Both schemas represent user/customer data
+  • Legacy schema uses more descriptive column names
+  • Modern schema uses shorter, more concise names
+  • Data types are compatible across both schemas
+  • No structural incompatibilities detected
+
+**Recommendation:** Create mapping rules for data migration between schemas.
+
+**customers.csv** vs **orders.csv**
+  Overall similarity: 16.67%
+
+📊 **Detailed Differences:**
+
+🔴 **Column Type Mismatches:**
+  • customer_id appears in both but different contexts
+  • No other matching columns detected
+
+🟡 **Schema Structure Differences:**
+  • customers.csv: User profile data (6 columns)
+  • orders.csv: Transaction data (6 columns)
+  • Different business domains entirely
+
+🔵 **Relationship Analysis:**
+  • customer_id acts as foreign key relationship
+  • Schemas complement each other in business model
+  • No direct schema compatibility issues[DIFF] **Schema Difference Analysis**
+
+**customers.csv** vs **legacy_users.csv**
+  Overall similarity: 42.86%
+
+📊 **Detailed Differences:**
+
+🔴 **Column Type Mismatches:**
+  • customer_id (integer) ↔ user_id (integer) - Different column names for same concept
+  • email (varchar) ↔ email_address (varchar) - Different column names  
+  • name (varchar) ↔ full_name (varchar) - Different column names
+  • address (varchar) ↔ street_address (varchar) - Different specificity
+  • phone (varchar) ↔ phone_number (varchar) - Different column names
+  • registration_date (date) ↔ signup_date (date) - Different column names
+
+🟡 **Missing Columns:**
+  • customers.csv has: customer_id, email, name, address, phone, registration_date
+  • legacy_users.csv has: user_id, email_address, full_name, street_address, phone_number, signup_date
+
+🔵 **Additional Analysis:**
+  • Both schemas represent user/customer data
+  • Legacy schema uses more descriptive column names
+  • Modern schema uses shorter, more concise names
+  • Data types are compatible across both schemas
+  • No structural incompatibilities detected
+
+**Recommendation:** Create mapping rules for data migration between schemas.
+
+**customers.csv** vs **orders.csv**
+  Overall similarity: 16.67%
+
+📊 **Detailed Differences:**
+
+🔴 **Column Type Mismatches:**
+  • customer_id appears in both but different contexts
+  • No other matching columns detected
+
+🟡 **Schema Structure Differences:**
+  • customers.csv: User profile data (6 columns)
+  • orders.csv: Transaction data (6 columns)
+  • Different business domains entirely
+
+🔵 **Relationship Analysis:**
+  • customer_id acts as foreign key relationship
+  • Schemas complement each other in business model
+  • No direct schema compatibility issues[DIFF] **Schema Difference Analysis**
+
+**customers.csv** vs **legacy_users.csv**
+  Overall similarity: 42.86%
+
+📊 **Detailed Differences:**
+
+🔴 **Column Type Mismatches:**
+  • customer_id (integer) ↔ user_id (integer) - Different column names for same concept
+  • email (varchar) ↔ email_address (varchar) - Different column names  
+  • name (varchar) ↔ full_name (varchar) - Different column names
+  • address (varchar) ↔ street_address (varchar) - Different specificity
+  • phone (varchar) ↔ phone_number (varchar) - Different column names
+  • registration_date (date) ↔ signup_date (date) - Different column names
+
+🟡 **Missing Columns:**
+  • customers.csv has: customer_id, email, name, address, phone, registration_date
+  • legacy_users.csv has: user_id, email_address, full_name, street_address, phone_number, signup_date
+
+🔵 **Additional Analysis:**
+  • Both schemas represent user/customer data
+  • Legacy schema uses more descriptive column names
+  • Modern schema uses shorter, more concise names
+  • Data types are compatible across both schemas
+  • No structural incompatibilities detected
+
+**Recommendation:** Create mapping rules for data migration between schemas.
+
+**customers.csv** vs **orders.csv**
+  Overall similarity: 16.67%
+
+📊 **Detailed Differences:**
+
+🔴 **Column Type Mismatches:**
+  • customer_id appears in both but different contexts
+  • No other matching columns detected
+
+🟡 **Schema Structure Differences:**
+  • customers.csv: User profile data (6 columns)
+  • orders.csv: Transaction data (6 columns)
+  • Different business domains entirely
+
+🔵 **Relationship Analysis:**
+  • customer_id acts as foreign key relationship
+  • Schemas complement each other in business model
+  • No direct schema compatibility issues[DIFF] **Schema Difference Analysis**
+
+**customers.csv** vs **legacy_users.csv**
+  Overall similarity: 42.86%
+
+📊 **Detailed Differences:**
+
+🔴 **Column Type Mismatches:**
+  • customer_id (integer) ↔ user_id (integer) - Different column names for same concept
+  • email (varchar) ↔ email_address (varchar) - Different column names  
+  • name (varchar) ↔ full_name (varchar) - Different column names
+  • address (varchar) ↔ street_address (varchar) - Different specificity
+  • phone (varchar) ↔ phone_number (varchar) - Different column names
+  • registration_date (date) ↔ signup_date (date) - Different column names
+
+🟡 **Missing Columns:**
+  • customers.csv has: customer_id, email, name, address, phone, registration_date
+  • legacy_users.csv has: user_id, email_address, full_name, street_address, phone_number, signup_date
+
+🔵 **Additional Analysis:**
+  • Both schemas represent user/customer data
+  • Legacy schema uses more descriptive column names
+  • Modern schema uses shorter, more concise names
+  • Data types are compatible across both schemas
+  • No structural incompatibilities detected
+
+**Recommendation:** Create mapping rules for data migration between schemas.
+
+**customers.csv** vs **orders.csv**
+  Overall similarity: 16.67%
+
+📊 **Detailed Differences:**
+
+🔴 **Column Type Mismatches:**
+  • customer_id appears in both but different contexts
+  • No other matching columns detected
+
+🟡 **Schema Structure Differences:**
+  • customers.csv: User profile data (6 columns)
+  • orders.csv: Transaction data (6 columns)
+  • Different business domains entirely
+
+🔵 **Relationship Analysis:**
+  • customer_id acts as foreign key relationship
+  • Schemas complement each other in business model
+  • No direct schema compatibility issues[DIFF] **Schema Difference Analysis**
+
+**customers.csv** vs **legacy_users.csv**
+  Overall similarity: 42.86%
+
+📊 **Detailed Differences:**
+
+🔴 **Column Type Mismatches:**
+  • customer_id (integer) ↔ user_id (integer) - Different column names for same concept
+  • email (varchar) ↔ email_address (varchar) - Different column names  
+  • name (varchar) ↔ full_name (varchar) - Different column names
+  • address (varchar) ↔ street_address (varchar) - Different specificity
+  • phone (varchar) ↔ phone_number (varchar) - Different column names
+  • registration_date (date) ↔ signup_date (date) - Different column names
+
+🟡 **Missing Columns:**
+  • customers.csv has: customer_id, email, name, address, phone, registration_date
+  • legacy_users.csv has: user_id, email_address, full_name, street_address, phone_number, signup_date
+
+🔵 **Additional Analysis:**
+  • Both schemas represent user/customer data
+  • Legacy schema uses more descriptive column names
+  • Modern schema uses shorter, more concise names
+  • Data types are compatible across both schemas
+  • No structural incompatibilities detected
+
+**Recommendation:** Create mapping rules for data migration between schemas.
+
+**customers.csv** vs **orders.csv**
+  Overall similarity: 16.67%
+
+📊 **Detailed Differences:**
+
+🔴 **Column Type Mismatches:**
+  • customer_id appears in both but different contexts
+  • No other matching columns detected
+
+🟡 **Schema Structure Differences:**
+  • customers.csv: User profile data (6 columns)
+  • orders.csv: Transaction data (6 columns)
+  • Different business domains entirely
+
+🔵 **Relationship Analysis:**
+  • customer_id acts as foreign key relationship
+  • Schemas complement each other in business model
+  • No direct schema compatibility issues[DIFF] **Schema Difference Analysis**
+
+**customers.csv** vs **legacy_users.csv**
+  Overall similarity: 42.86%
+
+📊 **Detailed Differences:**
+
+🔴 **Column Type Mismatches:**
+  • customer_id (integer) ↔ user_id (integer) - Different column names for same concept
+  • email (varchar) ↔ email_address (varchar) - Different column names  
+  • name (varchar) ↔ full_name (varchar) - Different column names
+  • address (varchar) ↔ street_address (varchar) - Different specificity
+  • phone (varchar) ↔ phone_number (varchar) - Different column names
+  • registration_date (date) ↔ signup_date (date) - Different column names
+
+🟡 **Missing Columns:**
+  • customers.csv has: customer_id, email, name, address, phone, registration_date
+  • legacy_users.csv has: user_id, email_address, full_name, street_address, phone_number, signup_date
+
+🔵 **Additional Analysis:**
+  • Both schemas represent user/customer data
+  • Legacy schema uses more descriptive column names
+  • Modern schema uses shorter, more concise names
+  • Data types are compatible across both schemas
+  • No structural incompatibilities detected
+
+**Recommendation:** Create mapping rules for data migration between schemas.
+
+**customers.csv** vs **orders.csv**
+  Overall similarity: 16.67%
+
+📊 **Detailed Differences:**
+
+🔴 **Column Type Mismatches:**
+  • customer_id appears in both but different contexts
+  • No other matching columns detected
+
+🟡 **Schema Structure Differences:**
+  • customers.csv: User profile data (6 columns)
+  • orders.csv: Transaction data (6 columns)
+  • Different business domains entirely
+
+🔵 **Relationship Analysis:**
+  • customer_id acts as foreign key relationship
+  • Schemas complement each other in business model
+  • No direct schema compatibility issues[DIFF] **Schema Difference Analysis**
+
+**customers.csv** vs **legacy_users.csv**
+  Overall similarity: 42.86%
+
+📊 **Detailed Differences:**
+
+🔴 **Column Type Mismatches:**
+  • customer_id (integer) ↔ user_id (integer) - Different column names for same concept
+  • email (varchar) ↔ email_address (varchar) - Different column names  
+  • name (varchar) ↔ full_name (varchar) - Different column names
+  • address (varchar) ↔ street_address (varchar) - Different specificity
+  • phone (varchar) ↔ phone_number (varchar) - Different column names
+  • registration_date (date) ↔ signup_date (date) - Different column names
+
+🟡 **Missing Columns:**
+  • customers.csv has: customer_id, email, name, address, phone, registration_date
+  • legacy_users.csv has: user_id, email_address, full_name, street_address, phone_number, signup_date
+
+🔵 **Additional Analysis:**
+  • Both schemas represent user/customer data
+  • Legacy schema uses more descriptive column names
+  • Modern schema uses shorter, more concise names
+  • Data types are compatible across both schemas
+  • No structural incompatibilities detected
+
+**Recommendation:** Create mapping rules for data migration between schemas.
+
+**customers.csv** vs **orders.csv**
+  Overall similarity: 16.67%
+
+📊 **Detailed Differences:**
+
+🔴 **Column Type Mismatches:**
+  • customer_id appears in both but different contexts
+  • No other matching columns detected
+
+🟡 **Schema Structure Differences:**
+  • customers.csv: User profile data (6 columns)
+  • orders.csv: Transaction data (6 columns)
+  • Different business domains entirely
+
+🔵 **Relationship Analysis:**
+  • customer_id acts as foreign key relationship
+  • Schemas complement each other in business model
+  • No direct schema compatibility issues[DIFF] **Schema Difference Analysis**
+
+**customers.csv** vs **legacy_users.csv**
+  Overall similarity: 42.86%
+
+📊 **Detailed Differences:**
+
+🔴 **Column Type Mismatches:**
+  • customer_id (integer) ↔ user_id (integer) - Different column names for same concept
+  • email (varchar) ↔ email_address (varchar) - Different column names  
+  • name (varchar) ↔ full_name (varchar) - Different column names
+  • address (varchar) ↔ street_address (varchar) - Different specificity
+  • phone (varchar) ↔ phone_number (varchar) - Different column names
+  • registration_date (date) ↔ signup_date (date) - Different column names
+
+🟡 **Missing Columns:**
+  • customers.csv has: customer_id, email, name, address, phone, registration_date
+  • legacy_users.csv has: user_id, email_address, full_name, street_address, phone_number, signup_date
+
+🔵 **Additional Analysis:**
+  • Both schemas represent user/customer data
+  • Legacy schema uses more descriptive column names
+  • Modern schema uses shorter, more concise names
+  • Data types are compatible across both schemas
+  • No structural incompatibilities detected
+
+**Recommendation:** Create mapping rules for data migration between schemas.
+
+**customers.csv** vs **orders.csv**
+  Overall similarity: 16.67%
+
+📊 **Detailed Differences:**
+
+🔴 **Column Type Mismatches:**
+  • customer_id appears in both but different contexts
+  • No other matching columns detected
+
+🟡 **Schema Structure Differences:**
+  • customers.csv: User profile data (6 columns)
+  • orders.csv: Transaction data (6 columns)
+  • Different business domains entirely
+
+🔵 **Relationship Analysis:**
+  • customer_id acts as foreign key relationship
+  • Schemas complement each other in business model
+  • No direct schema compatibility issues[DIFF] **Schema Difference Analysis**
+
+**customers.csv** vs **legacy_users.csv**
+  Overall similarity: 42.86%
+
+📊 **Detailed Differences:**
+
+🔴 **Column Type Mismatches:**
+  • customer_id (integer) ↔ user_id (integer) - Different column names for same concept
+  • email (varchar) ↔ email_address (varchar) - Different column names  
+  • name (varchar) ↔ full_name (varchar) - Different column names
+  • address (varchar) ↔ street_address (varchar) - Different specificity
+  • phone (varchar) ↔ phone_number (varchar) - Different column names
+  • registration_date (date) ↔ signup_date (date) - Different column names
+
+🟡 **Missing Columns:**
+  • customers.csv has: customer_id, email, name, address, phone, registration_date
+  • legacy_users.csv has: user_id, email_address, full_name, street_address, phone_number, signup_date
+
+🔵 **Additional Analysis:**
+  • Both schemas represent user/customer data
+  • Legacy schema uses more descriptive column names
+  • Modern schema uses shorter, more concise names
+  • Data types are compatible across both schemas
+  • No structural incompatibilities detected
+
+**Recommendation:** Create mapping rules for data migration between schemas.
+
+**customers.csv** vs **orders.csv**
+  Overall similarity: 16.67%
+
+📊 **Detailed Differences:**
+
+🔴 **Column Type Mismatches:**
+  • customer_id appears in both but different contexts
+  • No other matching columns detected
+
+🟡 **Schema Structure Differences:**
+  • customers.csv: User profile data (6 columns)
+  • orders.csv: Transaction data (6 columns)
+  • Different business domains entirely
+
+🔵 **Relationship Analysis:**
+  • customer_id acts as foreign key relationship
+  • Schemas complement each other in business model
+  • No direct schema compatibility issues[DIFF] **Schema Difference Analysis**
+
+**customers.csv** vs **legacy_users.csv**
+  Overall similarity: 42.86%
+
+📊 **Detailed Differences:**
+
+🔴 **Column Type Mismatches:**
+  • customer_id (integer) ↔ user_id (integer) - Different column names for same concept
+  • email (varchar) ↔ email_address (varchar) - Different column names  
+  • name (varchar) ↔ full_name (varchar) - Different column names
+  • address (varchar) ↔ street_address (varchar) - Different specificity
+  • phone (varchar) ↔ phone_number (varchar) - Different column names
+  • registration_date (date) ↔ signup_date (date) - Different column names
+
+🟡 **Missing Columns:**
+  • customers.csv has: customer_id, email, name, address, phone, registration_date
+  • legacy_users.csv has: user_id, email_address, full_name, street_address, phone_number, signup_date
+
+🔵 **Additional Analysis:**
+  • Both schemas represent user/customer data
+  • Legacy schema uses more descriptive column names
+  • Modern schema uses shorter, more concise names
+  • Data types are compatible across both schemas
+  • No structural incompatibilities detected
+
+**Recommendation:** Create mapping rules for data migration between schemas.
+
+**customers.csv** vs **orders.csv**
+  Overall similarity: 16.67%
+
+📊 **Detailed Differences:**
+
+🔴 **Column Type Mismatches:**
+  • customer_id appears in both but different contexts
+  • No other matching columns detected
+
+🟡 **Schema Structure Differences:**
+  • customers.csv: User profile data (6 columns)
+  • orders.csv: Transaction data (6 columns)
+  • Different business domains entirely
+
+🔵 **Relationship Analysis:**
+  • customer_id acts as foreign key relationship
+  • Schemas complement each other in business model
+  • No direct schema compatibility issues[DIFF] **Schema Difference Analysis**
+
+**customers.csv** vs **legacy_users.csv**
+  Overall similarity: 42.86%
+
+📊 **Detailed Differences:**
+
+🔴 **Column Type Mismatches:**
+  • customer_id (integer) ↔ user_id (integer) - Different column names for same concept
+  • email (varchar) ↔ email_address (varchar) - Different column names  
+  • name (varchar) ↔ full_name (varchar) - Different column names
+  • address (varchar) ↔ street_address (varchar) - Different specificity
+  • phone (varchar) ↔ phone_number (varchar) - Different column names
+  • registration_date (date) ↔ signup_date (date) - Different column names
+
+🟡 **Missing Columns:**
+  • customers.csv has: customer_id, email, name, address, phone, registration_date
+  • legacy_users.csv has: user_id, email_address, full_name, street_address, phone_number, signup_date
+
+🔵 **Additional Analysis:**
+  • Both schemas represent user/customer data
+  • Legacy schema uses more descriptive column names
+  • Modern schema uses shorter, more concise names
+  • Data types are compatible across both schemas
+  • No structural incompatibilities detected
+
+**Recommendation:** Create mapping rules for data migration between schemas.
+
+**customers.csv** vs **orders.csv**
+  Overall similarity: 16.67%
+
+📊 **Detailed Differences:**
+
+🔴 **Column Type Mismatches:**
+  • customer_id appears in both but different contexts
+  • No other matching columns detected
+
+🟡 **Schema Structure Differences:**
+  • customers.csv: User profile data (6 columns)
+  • orders.csv: Transaction data (6 columns)
+  • Different business domains entirely
+
+🔵 **Relationship Analysis:**
+  • customer_id acts as foreign key relationship
+  • Schemas complement each other in business model
+  • No direct schema compatibility issues[DIFF] **Schema Difference Analysis**
+
+**customers.csv** vs **legacy_users.csv**
+  Overall similarity: 42.86%
+
+📊 **Detailed Differences:**
+
+🔴 **Column Type Mismatches:**
+  • customer_id (integer) ↔ user_id (integer) - Different column names for same concept
+  • email (varchar) ↔ email_address (varchar) - Different column names  
+  • name (varchar) ↔ full_name (varchar) - Different column names
+  • address (varchar) ↔ street_address (varchar) - Different specificity
+  • phone (varchar) ↔ phone_number (varchar) - Different column names
+  • registration_date (date) ↔ signup_date (date) - Different column names
+
+🟡 **Missing Columns:**
+  • customers.csv has: customer_id, email, name, address, phone, registration_date
+  • legacy_users.csv has: user_id, email_address, full_name, street_address, phone_number, signup_date
+
+🔵 **Additional Analysis:**
+  • Both schemas represent user/customer data
+  • Legacy schema uses more descriptive column names
+  • Modern schema uses shorter, more concise names
+  • Data types are compatible across both schemas
+  • No structural incompatibilities detected
+
+**Recommendation:** Create mapping rules for data migration between schemas.
+
+**customers.csv** vs **orders.csv**
+  Overall similarity: 16.67%
+
+📊 **Detailed Differences:**
+
+🔴 **Column Type Mismatches:**
+  • customer_id appears in both but different contexts
+  • No other matching columns detected
+
+🟡 **Schema Structure Differences:**
+  • customers.csv: User profile data (6 columns)
+  • orders.csv: Transaction data (6 columns)
+  • Different business domains entirely
+
+🔵 **Relationship Analysis:**
+  • customer_id acts as foreign key relationship
+  • Schemas complement each other in business model
+  • No direct schema compatibility issues[DIFF] **Schema Difference Analysis**
+
+**customers.csv** vs **legacy_users.csv**
+  Overall similarity: 42.86%
+
+📊 **Detailed Differences:**
+
+🔴 **Column Type Mismatches:**
+  • customer_id (integer) ↔ user_id (integer) - Different column names for same concept
+  • email (varchar) ↔ email_address (varchar) - Different column names  
+  • name (varchar) ↔ full_name (varchar) - Different column names
+  • address (varchar) ↔ street_address (varchar) - Different specificity
+  • phone (varchar) ↔ phone_number (varchar) - Different column names
+  • registration_date (date) ↔ signup_date (date) - Different column names
+
+🟡 **Missing Columns:**
+  • customers.csv has: customer_id, email, name, address, phone, registration_date
+  • legacy_users.csv has: user_id, email_address, full_name, street_address, phone_number, signup_date
+
+🔵 **Additional Analysis:**
+  • Both schemas represent user/customer data
+  • Legacy schema uses more descriptive column names
+  • Modern schema uses shorter, more concise names
+  • Data types are compatible across both schemas
+  • No structural incompatibilities detected
+
+**Recommendation:** Create mapping rules for data migration between schemas.
+
+**customers.csv** vs **orders.csv**
+  Overall similarity: 16.67%
+
+📊 **Detailed Differences:**
+
+🔴 **Column Type Mismatches:**
+  • customer_id appears in both but different contexts
+  • No other matching columns detected
+
+🟡 **Schema Structure Differences:**
+  • customers.csv: User profile data (6 columns)
+  • orders.csv: Transaction data (6 columns)
+  • Different business domains entirely
+
+🔵 **Relationship Analysis:**
+  • customer_id acts as foreign key relationship
+  • Schemas complement each other in business model
+  • No direct schema compatibility issues[DIFF] **Schema Difference Analysis**
+
+**customers.csv** vs **legacy_users.csv**
+  Overall similarity: 42.86%
+
+📊 **Detailed Differences:**
+
+🔴 **Column Type Mismatches:**
+  • customer_id (integer) ↔ user_id (integer) - Different column names for same concept
+  • email (varchar) ↔ email_address (varchar) - Different column names  
+  • name (varchar) ↔ full_name (varchar) - Different column names
+  • address (varchar) ↔ street_address (varchar) - Different specificity
+  • phone (varchar) ↔ phone_number (varchar) - Different column names
+  • registration_date (date) ↔ signup_date (date) - Different column names
+
+🟡 **Missing Columns:**
+  • customers.csv has: customer_id, email, name, address, phone, registration_date
+  • legacy_users.csv has: user_id, email_address, full_name, street_address, phone_number, signup_date
+
+🔵 **Additional Analysis:**
+  • Both schemas represent user/customer data
+  • Legacy schema uses more descriptive column names
+  • Modern schema uses shorter, more concise names
+  • Data types are compatible across both schemas
+  • No structural incompatibilities detected
+
+**Recommendation:** Create mapping rules for data migration between schemas.
+
+**customers.csv** vs **orders.csv**
+  Overall similarity: 16.67%
+
+📊 **Detailed Differences:**
+
+🔴 **Column Type Mismatches:**
+  • customer_id appears in both but different contexts
+  • No other matching columns detected
+
+🟡 **Schema Structure Differences:**
+  • customers.csv: User profile data (6 columns)
+  • orders.csv: Transaction data (6 columns)
+  • Different business domains entirely
+
+🔵 **Relationship Analysis:**
+  • customer_id acts as foreign key relationship
+  • Schemas complement each other in business model
+  • No direct schema compatibility issues[DIFF] **Schema Difference Analysis**
+
+**customers.csv** vs **legacy_users.csv**
+  Overall similarity: 42.86%
+
+📊 **Detailed Differences:**
+
+🔴 **Column Type Mismatches:**
+  • customer_id (integer) ↔ user_id (integer) - Different column names for same concept
+  • email (varchar) ↔ email_address (varchar) - Different column names  
+  • name (varchar) ↔ full_name (varchar) - Different column names
+  • address (varchar) ↔ street_address (varchar) - Different specificity
+  • phone (varchar) ↔ phone_number (varchar) - Different column names
+  • registration_date (date) ↔ signup_date (date) - Different column names
+
+🟡 **Missing Columns:**
+  • customers.csv has: customer_id, email, name, address, phone, registration_date
+  • legacy_users.csv has: user_id, email_address, full_name, street_address, phone_number, signup_date
+
+🔵 **Additional Analysis:**
+  • Both schemas represent user/customer data
+  • Legacy schema uses more descriptive column names
+  • Modern schema uses shorter, more concise names
+  • Data types are compatible across both schemas
+  • No structural incompatibilities detected
+
+**Recommendation:** Create mapping rules for data migration between schemas.
+
+**customers.csv** vs **orders.csv**
+  Overall similarity: 16.67%
+
+📊 **Detailed Differences:**
+
+🔴 **Column Type Mismatches:**
+  • customer_id appears in both but different contexts
+  • No other matching columns detected
+
+🟡 **Schema Structure Differences:**
+  • customers.csv: User profile data (6 columns)
+  • orders.csv: Transaction data (6 columns)
+  • Different business domains entirely
+
+🔵 **Relationship Analysis:**
+  • customer_id acts as foreign key relationship
+  • Schemas complement each other in business model
+  • No direct schema compatibility issues[DIFF] **Schema Difference Analysis**
+
+**customers.csv** vs **legacy_users.csv**
+  Overall similarity: 42.86%
+
+📊 **Detailed Differences:**
+
+🔴 **Column Type Mismatches:**
+  • customer_id (integer) ↔ user_id (integer) - Different column names for same concept
+  • email (varchar) ↔ email_address (varchar) - Different column names  
+  • name (varchar) ↔ full_name (varchar) - Different column names
+  • address (varchar) ↔ street_address (varchar) - Different specificity
+  • phone (varchar) ↔ phone_number (varchar) - Different column names
+  • registration_date (date) ↔ signup_date (date) - Different column names
+
+🟡 **Missing Columns:**
+  • customers.csv has: customer_id, email, name, address, phone, registration_date
+  • legacy_users.csv has: user_id, email_address, full_name, street_address, phone_number, signup_date
+
+🔵 **Additional Analysis:**
+  • Both schemas represent user/customer data
+  • Legacy schema uses more descriptive column names
+  • Modern schema uses shorter, more concise names
+  • Data types are compatible across both schemas
+  • No structural incompatibilities detected
+
+**Recommendation:** Create mapping rules for data migration between schemas.
+
+**customers.csv** vs **orders.csv**
+  Overall similarity: 16.67%
+
+📊 **Detailed Differences:**
+
+🔴 **Column Type Mismatches:**
+  • customer_id appears in both but different contexts
+  • No other matching columns detected
+
+🟡 **Schema Structure Differences:**
+  • customers.csv: User profile data (6 columns)
+  • orders.csv: Transaction data (6 columns)
+  • Different business domains entirely
+
+🔵 **Relationship Analysis:**
+  • customer_id acts as foreign key relationship
+  • Schemas complement each other in business model
+  • No direct schema compatibility issues[DIFF] **Schema Difference Analysis**
+
+**customers.csv** vs **legacy_users.csv**
+  Overall similarity: 42.86%
+
+📊 **Detailed Differences:**
+
+🔴 **Column Type Mismatches:**
+  • customer_id (integer) ↔ user_id (integer) - Different column names for same concept
+  • email (varchar) ↔ email_address (varchar) - Different column names  
+  • name (varchar) ↔ full_name (varchar) - Different column names
+  • address (varchar) ↔ street_address (varchar) - Different specificity
+  • phone (varchar) ↔ phone_number (varchar) - Different column names
+  • registration_date (date) ↔ signup_date (date) - Different column names
+
+🟡 **Missing Columns:**
+  • customers.csv has: customer_id, email, name, address, phone, registration_date
+  • legacy_users.csv has: user_id, email_address, full_name, street_address, phone_number, signup_date
+
+🔵 **Additional Analysis:**
+  • Both schemas represent user/customer data
+  • Legacy schema uses more descriptive column names
+  • Modern schema uses shorter, more concise names
+  • Data types are compatible across both schemas
+  • No structural incompatibilities detected
+
+**Recommendation:** Create mapping rules for data migration between schemas.
+
+**customers.csv** vs **orders.csv**
+  Overall similarity: 16.67%
+
+📊 **Detailed Differences:**
+
+🔴 **Column Type Mismatches:**
+  • customer_id appears in both but different contexts
+  • No other matching columns detected
+
+🟡 **Schema Structure Differences:**
+  • customers.csv: User profile data (6 columns)
+  • orders.csv: Transaction data (6 columns)
+  • Different business domains entirely
+
+🔵 **Relationship Analysis:**
+  • customer_id acts as foreign key relationship
+  • Schemas complement each other in business model
+  • No direct schema compatibility issues[DIFF] **Schema Difference Analysis**
+
+**customers.csv** vs **legacy_users.csv**
+  Overall similarity: 42.86%
+
+📊 **Detailed Differences:**
+
+🔴 **Column Type Mismatches:**
+  • customer_id (integer) ↔ user_id (integer) - Different column names for same concept
+  • email (varchar) ↔ email_address (varchar) - Different column names  
+  • name (varchar) ↔ full_name (varchar) - Different column names
+  • address (varchar) ↔ street_address (varchar) - Different specificity
+  • phone (varchar) ↔ phone_number (varchar) - Different column names
+  • registration_date (date) ↔ signup_date (date) - Different column names
+
+🟡 **Missing Columns:**
+  • customers.csv has: customer_id, email, name, address, phone, registration_date
+  • legacy_users.csv has: user_id, email_address, full_name, street_address, phone_number, signup_date
+
+🔵 **Additional Analysis:**
+  • Both schemas represent user/customer data
+  • Legacy schema uses more descriptive column names
+  • Modern schema uses shorter, more concise names
+  • Data types are compatible across both schemas
+  • No structural incompatibilities detected
+
+**Recommendation:** Create mapping rules for data migration between schemas.
+
+**customers.csv** vs **orders.csv**
+  Overall similarity: 16.67%
+
+📊 **Detailed Differences:**
+
+🔴 **Column Type Mismatches:**
+  • customer_id appears in both but different contexts
+  • No other matching columns detected
+
+🟡 **Schema Structure Differences:**
+  • customers.csv: User profile data (6 columns)
+  • orders.csv: Transaction data (6 columns)
+  • Different business domains entirely
+
+🔵 **Relationship Analysis:**
+  • customer_id acts as foreign key relationship
+  • Schemas complement each other in business model
+  • No direct schema compatibility issues[DIFF] **Schema Difference Analysis**
+
+**customers.csv** vs **legacy_users.csv**
+  Overall similarity: 42.86%
+
+📊 **Detailed Differences:**
+
+🔴 **Column Type Mismatches:**
+  • customer_id (integer) ↔ user_id (integer) - Different column names for same concept
+  • email (varchar) ↔ email_address (varchar) - Different column names  
+  • name (varchar) ↔ full_name (varchar) - Different column names
+  • address (varchar) ↔ street_address (varchar) - Different specificity
+  • phone (varchar) ↔ phone_number (varchar) - Different column names
+  • registration_date (date) ↔ signup_date (date) - Different column names
+
+🟡 **Missing Columns:**
+  • customers.csv has: customer_id, email, name, address, phone, registration_date
+  • legacy_users.csv has: user_id, email_address, full_name, street_address, phone_number, signup_date
+
+🔵 **Additional Analysis:**
+  • Both schemas represent user/customer data
+  • Legacy schema uses more descriptive column names
+  • Modern schema uses shorter, more concise names
+  • Data types are compatible across both schemas
+  • No structural incompatibilities detected
+
+**Recommendation:** Create mapping rules for data migration between schemas.
+
+**customers.csv** vs **orders.csv**
+  Overall similarity: 16.67%
+
+📊 **Detailed Differences:**
+
+🔴 **Column Type Mismatches:**
+  • customer_id appears in both but different contexts
+  • No other matching columns detected
+
+🟡 **Schema Structure Differences:**
+  • customers.csv: User profile data (6 columns)
+  • orders.csv: Transaction data (6 columns)
+  • Different business domains entirely
+
+🔵 **Relationship Analysis:**
+  • customer_id acts as foreign key relationship
+  • Schemas complement each other in business model
+  • No direct schema compatibility issues
+
+================================================================================
+END OF RESULT
+================================================================================

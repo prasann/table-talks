@@ -29,3 +29,9 @@ cli:
 logging:
   level: "DEBUG"
   file: "./logs/tabletalk.log"
+
+# Export settings
+export:
+  enabled: true
+  auto_export_threshold: 20  # Lines to trigger auto-export
+  base_path: "./exports"       # Export directory
