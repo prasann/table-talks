@@ -40,7 +40,8 @@ class ChatInterface:
             self.agent = SchemaAgent(
                 metadata_store=self.metadata_store,
                 model_name=config['llm']['model'],
-                base_url=config['llm']['base_url']
+                base_url=config['llm']['base_url'],
+                timeout=config['llm'].get('timeout', 120)  # Use config timeout or default to 120
             )
             
             # Get status to display the right message

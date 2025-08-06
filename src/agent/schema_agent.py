@@ -19,11 +19,19 @@ class SchemaAgent:
     Requires phi4-mini-fc or similar function calling enabled models.
     """
     
-    def __init__(self, metadata_store, model_name: str = "phi4-mini-fc", base_url: str = "http://localhost:11434"):
-        """Initialize SchemaAgent with function calling only."""
+    def __init__(self, metadata_store, model_name: str = "phi4-mini-fc", base_url: str = "http://localhost:11434", timeout: int = 120):
+        """Initialize SchemaAgent with function calling only.
+        
+        Args:
+            metadata_store: Store for metadata operations
+            model_name: Name of the Ollama model to use
+            base_url: Base URL for Ollama API
+            timeout: Timeout in seconds for API calls (default: 120)
+        """
         self.tool_registry = ToolRegistry(metadata_store)
         self.model_name = model_name
         self.base_url = base_url
+        self.timeout = timeout
         self.logger = get_logger("tabletalk.schema_agent")
         
         # Detect function calling support - required for this simplified agent
@@ -32,7 +40,7 @@ class SchemaAgent:
         if not self.supports_function_calling:
             raise ValueError(f"Model {model_name} doesn't support function calling. Please use a function calling enabled model like phi4-mini-fc")
             
-        self.logger.info(f"SchemaAgent initialized with function calling mode for model: {model_name}")
+        self.logger.info(f"SchemaAgent initialized with function calling mode for model: {model_name} (timeout: {timeout}s)")
         # Detailed initialization logged only in debug mode
         self.logger.debug(f"Base URL: {base_url}, Tool registry initialized with {len(self.tool_registry.tools)} tools")
     
@@ -93,7 +101,7 @@ class SchemaAgent:
             }
             self.logger.debug(f"Sending function calling request with {len(tools)} tools")
             
-            response = requests.post(f"{self.base_url}/api/chat", json=payload, timeout=30)
+            response = requests.post(f"{self.base_url}/api/chat", json=payload, timeout=self.timeout)
             
             if response.status_code == 200:
                 response_data = response.json()

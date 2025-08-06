@@ -34,7 +34,8 @@ def load_config() -> dict:
                 'model': 'phi3:mini',  # Works well for structured output
                 'base_url': 'http://localhost:11434',
                 'temperature': 0.1,
-                'max_tokens': 1000
+                'max_tokens': 1000,
+                'timeout': 120  # Default timeout in seconds
             },
             'scanner': {
                 'max_file_size_mb': 100,
