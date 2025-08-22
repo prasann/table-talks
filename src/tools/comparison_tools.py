@@ -44,8 +44,11 @@ class FindRelationshipsTool(BaseTool):
     def execute(self, analysis_type: str = "common_columns", threshold: float = 2, semantic: bool = False) -> str:
         """Find relationships between files and columns with optional semantic analysis."""
         try:
-            # Handle semantic analysis types
-            if analysis_type in ["similar_schemas", "semantic_groups", "concept_evolution", "schema_differences"] and semantic:
+            # Handle semantic analysis types - some require semantic analysis regardless of semantic parameter
+            semantic_only_types = ["semantic_groups", "concept_evolution"]
+            semantic_capable_types = ["similar_schemas", "schema_differences"]
+            
+            if analysis_type in semantic_only_types or (analysis_type in semantic_capable_types and semantic):
                 return self._semantic_analysis(analysis_type, threshold)
             else:
                 return self._traditional_analysis(analysis_type, int(threshold))

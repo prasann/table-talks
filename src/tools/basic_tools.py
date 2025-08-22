@@ -52,7 +52,7 @@ class GetSchemasTool(BaseTool):
             "properties": {
                 "file_pattern": {
                     "type": "string",
-                    "description": "File name or pattern to filter for specific table/file (e.g., 'orders' for orders.csv, 'customer' for customer files). Leave empty to get all files."
+                    "description": "File name or pattern to filter for specific table/file"
                 },
                 "detailed": {
                     "type": "boolean", 
