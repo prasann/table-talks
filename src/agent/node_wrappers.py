@@ -31,9 +31,13 @@ class ToolNodeWrapper:
             query_lower = query.lower()
             
             # Pattern matching to determine tools and request type
-            if any(word in query_lower for word in ["files", "list", "what files", "show files"]):
+            if any(word in query_lower for word in ["files", "list", "what files", "show files"]) and "have" not in query_lower:
                 selected_tools.append("get_files")
                 request_type = "files"
+                
+            elif "which files have" in query_lower or "files have" in query_lower:
+                selected_tools.append("search_metadata")
+                request_type = "search"
                 
             elif any(word in query_lower for word in ["schema", "structure", "columns", "table"]):
                 # For schema queries, first get files then schemas
@@ -181,9 +185,17 @@ class ToolNodeWrapper:
         
         # Default arguments for each tool
         if tool_name == "search_metadata":
-            # Look for search terms in keywords
+            # Look for search terms in keywords, but also check the original query for specific terms
             search_terms = [word for word in keywords if len(word) > 2 and word not in ["the", "and", "for", "with", "search", "find"]]
-            return {"query": " ".join(search_terms[:3]) if search_terms else ""}
+            # Also look for specific identifiers in the original query
+            if "customer_id" in query:
+                return {"search_term": "customer_id"}
+            elif "order_id" in query:
+                return {"search_term": "order_id"}
+            elif search_terms:
+                return {"search_term": " ".join(search_terms[:3])}
+            else:
+                return {"search_term": ""}
             
         elif tool_name == "get_schemas":
             # Look for specific file patterns in the original query
