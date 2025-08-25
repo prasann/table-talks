@@ -22,6 +22,200 @@ class WorkflowPatterns:
         self.model_manager = model_manager
         self.logger.info("Model manager configured for workflow patterns")
     
+    def create_llm_orchestrated_workflow(self) -> StateGraph:
+        """Create an advanced workflow using LLM function calling for tool orchestration.
+        
+        This workflow leverages LLM capabilities for intelligent tool selection:
+        1. Analyze user query with LLM
+        2. Use LLM to select and orchestrate tools 
+        3. Format response with LLM assistance
+        """
+        workflow = StateGraph(TableTalkState)
+        
+        # Import LLM orchestrator
+        from ..llm_tool_orchestrator import LLMToolOrchestrator
+        
+        # Create LLM orchestrator
+        llm_orchestrator = LLMToolOrchestrator(
+            self.tool_wrapper.tool_registry, 
+            self.model_manager
+        )
+        
+        # Add nodes
+        workflow.add_node("llm_query_analyzer", self._create_llm_query_analyzer_node())
+        workflow.add_node("llm_tool_orchestrator", llm_orchestrator.create_llm_orchestrated_execution_node())
+        workflow.add_node("llm_response_formatter", self._create_llm_response_formatter_node())
+        
+        # Define workflow edges
+        workflow.add_edge(START, "llm_query_analyzer")
+        workflow.add_edge("llm_query_analyzer", "llm_tool_orchestrator")
+        workflow.add_edge("llm_tool_orchestrator", "llm_response_formatter")
+        workflow.add_edge("llm_response_formatter", END)
+        
+        self.logger.info("LLM-orchestrated workflow created")
+        return workflow
+    
+    def _create_llm_query_analyzer_node(self):
+        """Create a node that uses LLM to analyze queries."""
+        
+        def llm_query_analyzer_node(state: TableTalkState) -> Dict[str, Any]:
+            """Analyze query using LLM reasoning."""
+            query = state["original_request"]
+            
+            self.logger.debug(f"LLM analyzing query: {query}")
+            
+            # Enhanced analysis using LLM if available
+            if self.model_manager and self.model_manager.is_available:
+                try:
+                    import asyncio
+                    
+                    # Get event loop
+                    try:
+                        loop = asyncio.get_event_loop()
+                    except RuntimeError:
+                        loop = asyncio.new_event_loop()
+                        asyncio.set_event_loop(loop)
+                    
+                    # Use LLM for query understanding
+                    analysis_prompt = f"""
+                    Analyze this user query and provide insights about what they're asking for:
+                    
+                    Query: "{query}"
+                    
+                    Please provide:
+                    1. The main intent (what they want to know)
+                    2. The complexity level (simple, moderate, complex)
+                    3. Any specific entities mentioned (file names, column names, etc.)
+                    4. The expected response format they might want
+                    
+                    Be concise but thorough in your analysis.
+                    """
+                    
+                    response = loop.run_until_complete(
+                        self.model_manager.get_best_response(analysis_prompt)
+                    )
+                    
+                    if response.success:
+                        self.logger.debug(f"LLM query analysis: {response.content[:100]}...")
+                    
+                except Exception as e:
+                    self.logger.error(f"LLM query analysis failed: {e}")
+            
+            return {
+                "request_type": "llm_analyzed", 
+                "selected_tools": [],  # Will be selected by LLM orchestrator
+                "parsed_query": {"keywords": query.lower().split()},
+                "workflow_stage": "llm_orchestration",
+                "messages": state.get("messages", []) + [HumanMessage(content=query)]
+            }
+            
+        return llm_query_analyzer_node
+    
+    def _create_llm_response_formatter_node(self):
+        """Create a node that uses LLM to format responses."""
+        
+        def llm_response_formatter_node(state: TableTalkState) -> Dict[str, Any]:
+            """Format response using LLM assistance."""
+            tool_results = state.get("tool_results", {})
+            request_type = state.get("request_type", "query")
+            original_query = state["original_request"]
+            
+            if not tool_results:
+                formatted_response = "I couldn't find any results for your query."
+            else:
+                # Try LLM-enhanced formatting if available
+                if self.model_manager and self.model_manager.is_available:
+                    try:
+                        formatted_response = self._llm_format_response(
+                            original_query, tool_results, request_type
+                        )
+                    except Exception as e:
+                        self.logger.error(f"LLM formatting failed: {e}")
+                        formatted_response = self._simple_format_response(tool_results)
+                else:
+                    formatted_response = self._simple_format_response(tool_results)
+            
+            export_ready = len(formatted_response) > 100
+            
+            self.logger.info(f"LLM-formatted response: {len(formatted_response)} characters")
+            
+            return {
+                "formatted_response": formatted_response,
+                "export_ready": export_ready,
+                "workflow_stage": "complete",
+                "messages": state.get("messages", []) + [
+                    type('AIMessage', (), {'content': formatted_response})()
+                ]
+            }
+            
+        return llm_response_formatter_node
+    
+    def _llm_format_response(self, query: str, tool_results: Dict[str, Any], request_type: str) -> str:
+        """Use LLM to format the response."""
+        import asyncio
+        
+        # Prepare results summary
+        results_summary = []
+        for tool_name, result in tool_results.items():
+            # Truncate long results for the prompt
+            result_str = str(result)
+            if len(result_str) > 500:
+                result_str = result_str[:497] + "..."
+            results_summary.append(f"{tool_name}: {result_str}")
+        
+        formatting_prompt = f"""
+        Format a user-friendly response based on the following:
+        
+        User Query: "{query}"
+        Tool Results:
+        {chr(10).join(results_summary)}
+        
+        Please provide a clear, well-formatted response that:
+        1. Directly answers the user's question
+        2. Uses the tool results appropriately
+        3. Is easy to read and understand
+        4. Includes relevant details but isn't overwhelming
+        
+        Format the response professionally and concisely.
+        """
+        
+        try:
+            # Get event loop
+            try:
+                loop = asyncio.get_event_loop()
+            except RuntimeError:
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+            
+            response = loop.run_until_complete(
+                self.model_manager.get_best_response(formatting_prompt)
+            )
+            
+            if response.success and response.content.strip():
+                return response.content.strip()
+            
+        except Exception as e:
+            self.logger.error(f"LLM formatting error: {e}")
+        
+        # Fallback to simple formatting
+        return self._simple_format_response(tool_results)
+    
+    def _simple_format_response(self, tool_results: Dict[str, Any]) -> str:
+        """Simple response formatting as fallback."""
+        if len(tool_results) == 1:
+            tool_name, result = next(iter(tool_results.items()))
+            return str(result)
+        else:
+            formatted_parts = []
+            for tool_name, result in tool_results.items():
+                formatted_parts.append(f"## {tool_name.replace('_', ' ').title()}\n{result}\n")
+            return "\n".join(formatted_parts)
+    
+    def set_model_manager(self, model_manager):
+        """Set the model manager for Phase 2 multi-model support."""
+        self.model_manager = model_manager
+        self.logger.info("Model manager configured for workflow patterns")
+    
     def create_basic_query_workflow(self) -> StateGraph:
         """Create the basic query processing workflow.
         

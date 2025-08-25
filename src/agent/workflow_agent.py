@@ -110,7 +110,8 @@ class WorkflowAgent:
             "basic_query": self.workflow_patterns.create_basic_query_workflow().compile(),
             "schema_exploration": self.workflow_patterns.create_schema_exploration_workflow().compile(),
             "data_discovery": self.workflow_patterns.create_data_discovery_workflow().compile(),
-            "analysis": self.workflow_patterns.create_analysis_workflow().compile()
+            "analysis": self.workflow_patterns.create_analysis_workflow().compile(),
+            "llm_orchestrated": self.workflow_patterns.create_llm_orchestrated_workflow().compile()  # Enhanced workflow
         }
         
         # Use intelligent router instead of simple keyword matching
@@ -152,9 +153,18 @@ class WorkflowAgent:
                 # Store classification for debugging/reporting
                 self._last_classification = classification
                 
-                self.logger.info(f"Query classified: {classification.workflow_type} (confidence: {classification.confidence:.2f}) - {classification.reasoning}")
+                workflow_type = classification.workflow_type
                 
-                return classification.workflow_type
+                # Use LLM-orchestrated workflow for complex queries or high-confidence function calling models
+                if (classification.complexity == "complex" or 
+                    (self.model_manager.has_function_calling_capability() and classification.confidence > 0.8)):
+                    
+                    self.logger.info(f"Using LLM orchestration for complex/high-confidence query")
+                    workflow_type = "llm_orchestrated"
+                
+                self.logger.info(f"Query classified: {workflow_type} (confidence: {classification.confidence:.2f}) - {classification.reasoning}")
+                
+                return workflow_type
                 
             except Exception as e:
                 self.logger.error(f"Intelligent routing failed: {e}")

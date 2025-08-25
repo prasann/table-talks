@@ -246,6 +246,165 @@ class ModelManager:
                 return client
                 
         return None
+    
+    async def generate_function_calls(self, prompt: str, available_functions: Dict[str, Any], 
+                                    context: Dict[str, Any] = None) -> Any:
+        """Generate function calls using the best available function-calling model.
+        
+        Args:
+            prompt: The prompt for function calling
+            available_functions: Dictionary of available functions and their schemas
+            context: Additional context for the model
+            
+        Returns:
+            ModelResponse with function_calls attribute
+        """
+        function_calling_clients = []
+        
+        # Find clients that support function calling
+        for name, client in self.clients.items():
+            if client.is_available:
+                capabilities = client.get_capabilities()
+                if capabilities.get("function_calling", False):
+                    function_calling_clients.append((name, client))
+        
+        if not function_calling_clients:
+            self.logger.warning("No function-calling capable models available")
+            return self._create_empty_function_call_response("No function-calling models available")
+        
+        # Try each function calling client
+        for name, client in function_calling_clients:
+            try:
+                self.logger.debug(f"Attempting function calling with {name}")
+                
+                # Create function calling prompt
+                function_prompt = self._create_function_calling_prompt(
+                    prompt, available_functions, context
+                )
+                
+                response = await client.generate_response(function_prompt, context)
+                
+                if response.success:
+                    # Parse function calls from response
+                    function_calls = self._parse_function_calls(response.content)
+                    if function_calls:
+                        # Create enhanced response with function calls
+                        enhanced_response = type('FunctionCallResponse', (), {
+                            'success': True,
+                            'content': response.content,
+                            'function_calls': function_calls,
+                            'model_used': response.model_used,
+                            'tokens_used': response.tokens_used,
+                            'execution_time': response.execution_time,
+                            'error_message': response.error_message
+                        })()
+                        
+                        self.logger.info(f"Function calling successful with {name}, got {len(function_calls)} calls")
+                        return enhanced_response
+                        
+            except Exception as e:
+                self.logger.error(f"Function calling failed with {name}: {e}")
+                continue
+        
+        # All function calling attempts failed
+        return self._create_empty_function_call_response("All function calling attempts failed")
+    
+    def _create_function_calling_prompt(self, original_prompt: str, 
+                                      available_functions: Dict[str, Any],
+                                      context: Dict[str, Any] = None) -> str:
+        """Create a function calling prompt."""
+        
+        # Format available functions
+        function_descriptions = []
+        for func_name, func_info in available_functions.items():
+            function_descriptions.append(
+                f"{func_name}: {func_info['description']} "
+                f"(params: {func_info['parameters']['properties'].keys() if func_info['parameters'].get('properties') else 'none'})"
+            )
+        
+        return f"""{original_prompt}
+
+Available Functions:
+{chr(10).join(function_descriptions)}
+
+Please respond with a valid JSON object containing your reasoning and function calls to execute.
+The response should follow this exact format:
+
+{{
+    "reasoning": "Brief explanation of your approach",
+    "function_calls": [
+        {{
+            "name": "function_name",
+            "parameters": {{
+                "param1": "value1",
+                "param2": "value2"
+            }}
+        }}
+    ]
+}}
+
+Ensure the JSON is properly formatted and all required parameters are provided.
+"""
+    
+    def _parse_function_calls(self, response_content: str) -> List[Dict[str, Any]]:
+        """Parse function calls from LLM response."""
+        try:
+            import json
+            import re
+            
+            # Clean and extract JSON
+            content = response_content.strip()
+            
+            # Handle markdown code blocks
+            if content.startswith('```json') and content.endswith('```'):
+                content = content[7:-3].strip()
+            elif content.startswith('```') and content.endswith('```'):
+                content = content[3:-3].strip()
+            
+            # Try to find JSON object
+            json_match = re.search(r'\{.*\}', content, re.DOTALL)
+            if json_match:
+                content = json_match.group(0)
+            
+            parsed = json.loads(content)
+            
+            # Extract function calls
+            function_calls = parsed.get("function_calls", [])
+            
+            # Validate function calls
+            valid_calls = []
+            for call in function_calls:
+                if isinstance(call, dict) and "name" in call:
+                    valid_calls.append({
+                        "name": call["name"],
+                        "parameters": call.get("parameters", {})
+                    })
+            
+            return valid_calls
+            
+        except Exception as e:
+            self.logger.error(f"Failed to parse function calls: {e}")
+            self.logger.debug(f"Raw response: {response_content}")
+            return []
+    
+    def _create_empty_function_call_response(self, error_message: str):
+        """Create an empty function call response for errors."""
+        return type('FunctionCallResponse', (), {
+            'success': False,
+            'content': '',
+            'function_calls': [],
+            'model_used': 'none',
+            'tokens_used': 0,
+            'execution_time': 0,
+            'error_message': error_message
+        })()
+    
+    def has_function_calling_capability(self) -> bool:
+        """Check if any available client supports function calling."""
+        for client in self.clients.values():
+            if client.is_available and client.supports_function_calling():
+                return True
+        return False
         
     def get_status(self) -> Dict[str, Any]:
         """Get status of all model clients."""
