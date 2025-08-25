@@ -19,66 +19,40 @@ class ToolNodeWrapper:
         """Create a node that analyzes the user query and determines tools to use."""
         
         def query_analyzer_node(state: TableTalkState) -> Dict[str, Any]:
-            """Analyze query and determine execution strategy."""
+            """Analyze query and determine execution strategy using intelligent pattern matching."""
             query = state["original_request"]
             self.logger.debug(f"Analyzing query: {query}")
             
-            # Simple keyword-based analysis for now (Phase 1)
-            # This will be enhanced in later phases with LLM-based analysis
+            # Enhanced analysis with multiple approaches
             selected_tools = []
             request_type = "schema"  # default
+            confidence = 0.5  # confidence in tool selection
             
             query_lower = query.lower()
+            tokens = query_lower.split()
             
-            # Pattern matching to determine tools and request type
-            if any(word in query_lower for word in ["files", "list", "what files", "show files"]) and "have" not in query_lower:
-                selected_tools.append("get_files")
-                request_type = "files"
-                
-            elif "which files have" in query_lower or "files have" in query_lower:
-                selected_tools.append("search_metadata")
-                request_type = "search"
-                
-            elif any(word in query_lower for word in ["schema", "structure", "columns", "table"]):
-                # For schema queries, first get files then schemas
-                selected_tools.append("get_schemas") 
-                request_type = "schema"
-                
-            elif any(word in query_lower for word in ["search", "find", "contains", "where"]):
-                selected_tools.append("search_metadata")
-                request_type = "search"
-                
-            elif any(word in query_lower for word in ["statistics", "stats", "count", "size"]):
-                selected_tools.append("get_statistics")
-                request_type = "analysis"
-                
-            elif any(word in query_lower for word in ["relationship", "connections", "related"]):
-                selected_tools.append("find_relationships")
-                request_type = "analysis"
-                
-            elif any(word in query_lower for word in ["inconsistent", "issues", "problems", "quality"]):
-                selected_tools.append("detect_inconsistencies")
-                request_type = "analysis"
-                
-            elif any(word in query_lower for word in ["compare", "difference", "similar"]):
-                selected_tools.append("compare_items")
-                request_type = "comparison"
-                
-            elif any(word in query_lower for word in ["analyze", "analysis"]):
-                selected_tools.append("run_analysis")
-                request_type = "analysis"
+            # Use intelligent pattern matching with scoring
+            analysis_result = self._analyze_query_intent(query_lower, tokens)
+            selected_tools = analysis_result["tools"]
+            request_type = analysis_result["type"]
+            confidence = analysis_result["confidence"]
             
-            # Default to file listing if no clear intent
+            # Fallback validation - ensure we have at least one tool
             if not selected_tools:
                 selected_tools = ["get_files"]
                 request_type = "files"
+                confidence = 0.3  # Low confidence fallback
                 
-            self.logger.info(f"Query analysis: type={request_type}, tools={selected_tools}")
+            self.logger.info(f"Query analysis: type={request_type}, tools={selected_tools}, confidence={confidence:.2f}")
             
             return {
                 "request_type": request_type,
                 "selected_tools": selected_tools,
-                "parsed_query": {"keywords": query_lower.split()},
+                "parsed_query": {
+                    "keywords": tokens,
+                    "confidence": confidence,
+                    "analysis_method": "intelligent_pattern_matching"
+                },
                 "workflow_stage": "planning",
                 "messages": state.get("messages", []) + [HumanMessage(content=query)]
             }
@@ -251,3 +225,137 @@ class ToolNodeWrapper:
             for tool_name, result in tool_results.items():
                 formatted_parts.append(f"## {tool_name.replace('_', ' ').title()}\n{result}\n")
             return "\n".join(formatted_parts)
+    
+    def _analyze_query_intent(self, query_lower: str, tokens: List[str]) -> Dict[str, Any]:
+        """Analyze query intent using intelligent pattern matching with confidence scoring."""
+        
+        # Define intent patterns with weights and confidence scores
+        intent_patterns = {
+            "files": {
+                "patterns": [
+                    (["what", "files"], 0.9),
+                    (["files", "list"], 0.85), 
+                    (["show", "files"], 0.85),
+                    (["all", "files"], 0.8),
+                    (["files", "available"], 0.8),
+                    (["files", "do", "we", "have"], 0.95)
+                ],
+                "tools": ["get_files"],
+                "exclude_if": ["which"]  # Don't match "which files have" as files query
+            },
+            "search": {
+                "patterns": [
+                    (["which", "files", "have"], 0.95),
+                    (["files", "have"], 0.9),
+                    (["search", "for"], 0.85),
+                    (["find", "files"], 0.8),
+                    (["contains"], 0.75),
+                    (["where"], 0.7)
+                ],
+                "tools": ["search_metadata"],
+                "exclude_if": []
+            },
+            "schema": {
+                "patterns": [
+                    (["schema"], 0.95),
+                    (["structure"], 0.9),
+                    (["columns"], 0.9),
+                    (["table", "structure"], 0.85),
+                    (["fields"], 0.8),
+                    (["format"], 0.7)
+                ],
+                "tools": ["get_schemas"],
+                "exclude_if": []
+            },
+            "analysis": {
+                "patterns": [
+                    (["analyze"], 0.95),
+                    (["analysis"], 0.9),
+                    (["statistics"], 0.9),
+                    (["stats"], 0.85),
+                    (["issues"], 0.8),
+                    (["problems"], 0.8),
+                    (["quality"], 0.75),
+                    (["relationships"], 0.8),
+                    (["connections"], 0.8),
+                    (["inconsistent"], 0.85)
+                ],
+                "tools": ["run_analysis"],
+                "exclude_if": []
+            },
+            "comparison": {
+                "patterns": [
+                    (["compare"], 0.9),
+                    (["difference"], 0.85),
+                    (["similar"], 0.85),
+                    (["similarities"], 0.9),
+                    (["versus"], 0.8),
+                    (["vs"], 0.8)
+                ],
+                "tools": ["compare_items"],
+                "exclude_if": []
+            }
+        }
+        
+        best_match = {"type": "files", "tools": ["get_files"], "confidence": 0.3}
+        
+        # Score each intent type
+        for intent_type, config in intent_patterns.items():
+            score = 0
+            matched_patterns = []
+            
+            # Check exclusion patterns first
+            excluded = any(exclude_word in tokens for exclude_word in config["exclude_if"])
+            if excluded and intent_type == "files":
+                continue
+                
+            # Score patterns
+            for pattern_words, weight in config["patterns"]:
+                if all(word in tokens for word in pattern_words):
+                    score += weight
+                    matched_patterns.append(pattern_words)
+                elif any(word in query_lower for word in pattern_words):
+                    # Partial match gets partial score
+                    score += weight * 0.6
+                    matched_patterns.append(pattern_words)
+            
+            # Bonus for multiple pattern matches
+            if len(matched_patterns) > 1:
+                score *= 1.2
+                
+            # Context bonuses
+            if intent_type == "analysis":
+                # Analysis keywords get bonus in combination
+                analysis_indicators = ["data", "dataset", "report", "overview", "insight"]
+                if any(indicator in tokens for indicator in analysis_indicators):
+                    score *= 1.1
+                    
+            if intent_type == "search":
+                # Search gets bonus with specific identifiers
+                identifiers = ["customer_id", "user_id", "order_id", "id", "name"]
+                if any(identifier in query_lower for identifier in identifiers):
+                    score *= 1.15
+            
+            # Update best match if this scores higher
+            if score > best_match["confidence"]:
+                best_match = {
+                    "type": intent_type,
+                    "tools": config["tools"].copy(),
+                    "confidence": score  # Don't cap yet, cap at the end
+                }
+        
+        # Handle multi-tool scenarios for analysis
+        if best_match["type"] == "analysis":
+            # Analysis might need specific tools based on context
+            if any(word in tokens for word in ["relationship", "relationships", "connections", "related"]):
+                best_match["tools"] = ["find_relationships"]
+            elif any(word in tokens for word in ["inconsistent", "issues", "problems", "quality"]):
+                best_match["tools"] = ["detect_inconsistencies"]
+            elif any(word in tokens for word in ["statistics", "stats", "count"]):
+                best_match["tools"] = ["get_statistics"]
+            # Keep run_analysis as default for analysis type
+        
+        # Cap confidence at 1.0 at the end
+        best_match["confidence"] = min(best_match["confidence"], 1.0)
+        
+        return best_match
