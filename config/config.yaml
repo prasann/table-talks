@@ -5,7 +5,43 @@ database:
   path: "./database/metadata.duckdb"
   schema: "main"
 
-# LLM settings
+# Multi-model configuration (Phase 2)
+models:
+  # Primary model for schema analysis and function calling
+  primary:
+    type: "ollama"
+    model: "phi4-mini-fc"
+    base_url: "http://localhost:11434"
+    temperature: 0.1
+    max_tokens: 3000
+    timeout: 120
+  
+  # Code generation model (can be OpenAI or Ollama)
+  code_generation:
+    type: "ollama"        # Change to "openai" for GPT models
+    model: "codellama:34b" # or "gpt-4o" for OpenAI
+    base_url: "http://localhost:11434"  # Only for Ollama
+    api_key: "${OPENAI_API_KEY}"        # Only for OpenAI
+    temperature: 0.1
+    max_tokens: 4000
+    timeout: 180
+    
+    # Fallback configuration
+    fallback:
+      type: "ollama"
+      model: "phi4-mini-fc"
+      base_url: "http://localhost:11434"
+  
+  # General purpose model for simple queries
+  general:
+    type: "ollama"
+    model: "llama3.1:8b"
+    base_url: "http://localhost:11434"
+    temperature: 0.1
+    max_tokens: 2000
+    timeout: 60
+
+# LLM settings (legacy compatibility)
 llm:
   model: "phi4-mini-fc"  # Use function calling enabled model
   base_url: "http://localhost:11434"
@@ -14,12 +50,47 @@ llm:
   timeout: 120  # API call timeout in seconds (default: 120)
   strategy_type: null  # Options: "function_calling", "structured_output", or null for auto-detection
 
-# LangGraph settings (Phase 1)
+# Agent configuration (Phase 2)
+agents:
+  schema_agent:
+    model: "primary"
+    tools: ["all_tabletalk_tools"]
+    workflows: ["schema_exploration", "data_discovery", "basic_query"]
+    specialization: "schema_analysis"
+  
+  code_generation_agent:
+    model: "code_generation"
+    tools: ["file_system", "code_validation"] 
+    workflows: ["script_generation", "notebook_creation"]
+    specialization: "code_generation"
+    enabled: false  # Enable in Phase 3
+  
+  orchestrator:
+    model: "primary"
+    max_steps: 10
+    coordination_strategy: "intelligent_routing"
+    cost_optimization: true
+
+# LangGraph settings (Enhanced Phase 2)
 langgraph:
   enabled: true
   default_workflow: "basic_query"
   max_retry_count: 2
   execution_timeout: 60  # Workflow execution timeout
+  
+  # Query routing configuration
+  routing:
+    method: "llm_based"     # "llm_based" or "keyword_based"
+    classification_model: "primary"  # Model to use for query classification
+    confidence_threshold: 0.7
+    fallback_to_keywords: true  # Fall back to keywords if LLM classification fails
+  
+  # Performance optimization
+  optimization:
+    enable_caching: true
+    parallel_execution: true
+    cost_tracking: true
+    auto_model_selection: true  # Automatically select best model for task
 
 # File scanning settings
 scanner:

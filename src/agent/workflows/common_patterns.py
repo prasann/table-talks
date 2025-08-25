@@ -15,6 +15,12 @@ class WorkflowPatterns:
     def __init__(self, tool_node_wrapper: ToolNodeWrapper):
         self.tool_wrapper = tool_node_wrapper
         self.logger = get_logger("tabletalk.workflow_patterns")
+        self.model_manager = None  # Phase 2: Will be set by WorkflowAgent
+    
+    def set_model_manager(self, model_manager):
+        """Set the model manager for Phase 2 multi-model support."""
+        self.model_manager = model_manager
+        self.logger.info("Model manager configured for workflow patterns")
     
     def create_basic_query_workflow(self) -> StateGraph:
         """Create the basic query processing workflow.
