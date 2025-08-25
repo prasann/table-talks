@@ -9,6 +9,7 @@ from pathlib import Path
 from ..metadata.metadata_store import MetadataStore
 from ..metadata.schema_extractor import SchemaExtractor
 from ..agent.schema_agent import SchemaAgent
+from ..agent.workflow_agent import WorkflowAgent
 from ..utils.session_logger import QuerySessionLogger
 from ..utils.export_manager import ExportManager
 from .rich_formatter import CLIFormatter
@@ -46,9 +47,9 @@ class ChatInterface:
             sample_size=config['scanner']['sample_size']
         )
         
-        # Initialize Schema agent (simplified - function calling only)
+        # Initialize Workflow agent (LangGraph-based, replaces SchemaAgent)
         try:
-            self.agent = SchemaAgent(
+            self.agent = WorkflowAgent(
                 metadata_store=self.metadata_store,
                 model_name=config['llm']['model'],
                 base_url=config['llm']['base_url'],
@@ -57,17 +58,15 @@ class ChatInterface:
             
             # Get status to display the right message
             status = self.agent.get_status()
-            if status.get('function_calling'):
-                self.formatter.print_status({
-                    'mode': 'Function Calling',
-                    'tools_count': status['tools_available'],
-                    'tools_list': status['tool_names'],
-                    'llm_available': True,
-                    'function_calling': True,
-                    'model_name': status.get('model_name', '')
-                })
-            else:
-                self.formatter.print_error("Function calling not supported - please use phi4-mini-fc model")
+            self.formatter.print_status({
+                'mode': f"{status.get('agent_type', 'Unknown')} - {status.get('mode', 'Unknown')}",
+                'workflows_count': len(status.get('workflows_available', [])),
+                'workflows_list': status.get('workflows_available', []),
+                'tools_count': status.get('tools_available', 0),
+                'llm_available': status.get('llm_available', True),
+                'function_calling': status.get('function_calling', True),
+                'model_name': status.get('model_name', '')
+            })
                 
         except Exception as e:
             self.formatter.print_warning(f"LLM agent not available: {e}")

@@ -126,31 +126,46 @@ class RunAnalysisTool(BaseTool):
         try:
             desc_lower = description.lower()
             
-            # Map common patterns to specific tools
-            if "similar" in desc_lower and ("schema" in desc_lower or "column" in desc_lower):
+            # Map common patterns to specific tools - actually execute analysis
+            if any(word in desc_lower for word in ["similar", "comparison", "compare"]) and any(word in desc_lower for word in ["schema", "column", "table"]):
+                # Execute similarity analysis
                 analyzer = RelationshipAnalyzer(self.store)
                 results = analyzer.analyze("similar_schemas", threshold=3)
                 formatter = TextFormatter()
                 context = {'format_type': 'analysis_results', 'analysis_type': 'similar_schemas'}
                 return formatter.format(results, context)
             
-            elif "most columns" in desc_lower or "largest" in desc_lower:
+            elif any(word in desc_lower for word in ["most columns", "largest", "biggest", "column count"]):
+                # Execute file size analysis
                 return self._find_largest_files()
             
-            elif "type mismatch" in desc_lower or "inconsistent" in desc_lower:
+            elif any(word in desc_lower for word in ["type mismatch", "inconsistent", "data type", "quality"]):
+                # Execute consistency check
                 checker = ConsistencyChecker(self.store)
                 results = checker.analyze("data_types")
                 formatter = TextFormatter()
                 context = {'format_type': 'analysis_results', 'analysis_type': 'data_types'}
                 return formatter.format(results, context)
             
+            elif any(word in desc_lower for word in ["relationship", "connection", "related", "common"]):
+                # Execute relationship analysis
+                analyzer = RelationshipAnalyzer(self.store)
+                results = analyzer.analyze("common_columns", threshold=2)
+                formatter = TextFormatter()
+                context = {'format_type': 'analysis_results', 'analysis_type': 'common_columns'}
+                return formatter.format(results, context)
+            
+            elif any(word in desc_lower for word in ["statistics", "stats", "summary", "overview"]):
+                # Execute statistical analysis
+                return self._generate_statistics_summary()
+            
+            elif any(word in desc_lower for word in ["anomal", "outlier", "unusual", "suspicious"]):
+                # Execute anomaly detection
+                return self._detect_anomalies()
+            
             else:
-                return (f"For this analysis: '{description}', try using these specific tools:\n"
-                       f"• search_metadata() - for searching columns, files, or types\n"
-                       f"• get_schemas() - for schema information\n"
-                       f"• find_relationships() - for common columns or similar schemas\n"
-                       f"• detect_inconsistencies() - for data type or naming issues\n"
-                       f"• compare_items() - for comparing two specific files")
+                # For unrecognized patterns, try to infer the best analysis approach
+                return self._infer_and_execute_analysis(description)
                 
         except Exception as e:
             self.logger.error(f"Error in analysis: {str(e)}")
@@ -182,3 +197,102 @@ class RunAnalysisTool(BaseTool):
             result.append("")
         
         return "\n".join(result)
+    
+    def _generate_statistics_summary(self) -> str:
+        """Generate overall statistics summary."""
+        try:
+            files = self.store.list_all_files()
+            total_files = len(files)
+            total_rows = sum(f.get('total_rows', 0) for f in files if f.get('total_rows'))
+            
+            # Schema information
+            total_columns = 0
+            data_types = {}
+            
+            for file_info in files:
+                schema = self.store.get_file_schema(file_info['file_name'])
+                if schema:
+                    total_columns += len(schema)
+                    for col in schema:
+                        dt = col.get('data_type', 'unknown')
+                        data_types[dt] = data_types.get(dt, 0) + 1
+            
+            result = [
+                "Dataset Statistics Summary:",
+                f"  Total Files: {total_files}",
+                f"  Total Rows: {total_rows:,}" if total_rows else "  Total Rows: Unknown",
+                f"  Total Columns: {total_columns}",
+                "",
+                "Data Type Distribution:"
+            ]
+            
+            for dtype, count in sorted(data_types.items(), key=lambda x: x[1], reverse=True):
+                result.append(f"  {dtype}: {count} columns")
+            
+            return "\n".join(result)
+            
+        except Exception as e:
+            return f"Error generating statistics: {str(e)}"
+    
+    def _detect_anomalies(self) -> str:
+        """Detect potential anomalies in the data."""
+        try:
+            checker = ConsistencyChecker(self.store)
+            
+            # Check for various types of anomalies
+            anomalies = []
+            
+            # Data type inconsistencies
+            try:
+                type_issues = checker.analyze("data_types")
+                if type_issues:
+                    anomalies.append("Data Type Inconsistencies:")
+                    anomalies.append(str(type_issues))
+            except Exception:
+                pass  # Skip if data_types analysis fails
+                
+            # Naming inconsistencies  
+            try:
+                naming_issues = checker.analyze("naming_patterns")
+                if naming_issues:
+                    anomalies.append("\nNaming Pattern Issues:")
+                    anomalies.append(str(naming_issues))
+            except Exception:
+                pass  # Skip if naming_patterns analysis fails
+            
+            if not anomalies:
+                return "No significant anomalies detected in the dataset."
+            
+            return "\n".join(anomalies)
+            
+        except Exception as e:
+            return f"Error detecting anomalies: {str(e)}"
+    
+    def _infer_and_execute_analysis(self, description: str) -> str:
+        """Infer the best analysis approach for unclear requests."""
+        try:
+            # Try to extract meaningful keywords and map to analysis
+            keywords = description.lower().split()
+            
+            # Look for data-related keywords
+            if any(word in keywords for word in ['data', 'dataset', 'information']):
+                return self._generate_statistics_summary()
+            
+            # Look for schema-related keywords
+            elif any(word in keywords for word in ['structure', 'format', 'schema']):
+                analyzer = RelationshipAnalyzer(self.store)
+                results = analyzer.analyze("similar_schemas", threshold=2)
+                formatter = TextFormatter()
+                context = {'format_type': 'analysis_results', 'analysis_type': 'similar_schemas'}
+                return formatter.format(results, context)
+            
+            # Look for problem-related keywords
+            elif any(word in keywords for word in ['problem', 'issue', 'error', 'wrong']):
+                return self._detect_anomalies()
+            
+            # Default to general overview
+            else:
+                return self._generate_statistics_summary()
+                
+        except Exception as e:
+            return f"Error inferring analysis type: {str(e)}"
