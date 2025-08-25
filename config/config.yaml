@@ -14,6 +14,13 @@ llm:
   timeout: 120  # API call timeout in seconds (default: 120)
   strategy_type: null  # Options: "function_calling", "structured_output", or null for auto-detection
 
+# LangGraph settings (Phase 1)
+langgraph:
+  enabled: true
+  default_workflow: "basic_query"
+  max_retry_count: 2
+  execution_timeout: 60  # Workflow execution timeout
+
 # File scanning settings
 scanner:
   supported_formats: ["csv", "parquet"]
