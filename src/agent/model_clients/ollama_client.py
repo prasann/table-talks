@@ -119,9 +119,21 @@ class OllamaMultiModelClient(BaseModelClient):
             response = await self._generate_response(classification_prompt, model_config["model"])
             
             if response.success:
-                # Parse the JSON response
+                # Parse the JSON response - handle markdown code blocks from Ollama models
                 try:
-                    classification_data = json.loads(response.content)
+                    response_content = response.content.strip()
+                    
+                    # Extract JSON from markdown code blocks if present
+                    if response_content.startswith('```json') and response_content.endswith('```'):
+                        # Remove markdown formatting
+                        json_content = response_content[7:-3].strip()  # Remove ```json and ```
+                    elif response_content.startswith('```') and response_content.endswith('```'):
+                        # Handle generic code blocks
+                        json_content = response_content[3:-3].strip()
+                    else:
+                        json_content = response_content
+                    
+                    classification_data = json.loads(json_content)
                     return QueryClassification(
                         workflow_type=classification_data.get("workflow_type", "basic_query"),
                         confidence=float(classification_data.get("confidence", 0.5)),
@@ -131,6 +143,7 @@ class OllamaMultiModelClient(BaseModelClient):
                     )
                 except (json.JSONDecodeError, ValueError) as e:
                     self.logger.warning(f"Failed to parse classification JSON: {e}")
+                    self.logger.debug(f"Raw response content: {response.content}")
                     # Fall back to keyword-based classification
                     return self._fallback_classification(query)
             else:

@@ -209,6 +209,11 @@ class ToolNodeWrapper:
         elif tool_name == "compare_items":
             return {"item_type": "files", "comparison_criteria": "schema"}
             
+        elif tool_name == "run_analysis":
+            # Extract the original request as description for analysis tool
+            original_request = state.get("original_request", "")
+            return {"description": original_request}
+            
         # Default empty args for other tools that don't require arguments
         return {}
     
